@@ -11,12 +11,16 @@
 <body>
     <div id="container"></div>
     <section class="components">
-        <img src="assets/components/battery.png" alt="battery" id="dcBattery" />
-        <img src="assets/components/resistance.png" alt="resistance" id="resistance" />
-        <img src="assets/components/wire.png" alt="wire" id="wire" />
-        <!-- <img src="assets/components/wire.png" alt="wire2" /> -->
+        <div class="image-container">
+            <img src="assets/components/dcvs.png" alt="battery" id="dcBattery" />
+            <img src="assets/components/resistance.png" alt="resistance" id="resistance" />
+            <img src="assets/components/wire.png" alt="wire" id="wire" />
+            <img src="assets/components/dccs.png" alt="Current Source" id="dcCurrentSource" />
+            <img src="assets/components/ddcvs.png" alt="Dependent voltage source" id="DependentVoltageSource" />
+        </div>
     </section>
     <button class="run">run</button>
+    <script src="scripts/static.js"></script>
     <script type="module" src="scripts/index.js"></script>
 </body>
 

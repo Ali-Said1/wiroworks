@@ -3,6 +3,7 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    position: relative;
 }
 
 .components {
@@ -13,20 +14,30 @@ body {
     top: 50%;
     left: 0;
     transform: translateY(-50%);
+    padding: 40px 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
     -webkit-transform: translateY(-50%);
     -moz-transform: translateY(-50%);
     -ms-transform: translateY(-50%);
     -o-transform: translateY(-50%);
-    padding: 40px 0;
-    box-sizing: border-box;
+}
+
+.image-container {
     display: grid;
     grid-template-columns: auto;
     grid-template-rows: repeat(3, 1fr);
     overflow-y: hidden;
+    height: 300px;
+    /* Adjust height to show 3 images */
+    transition: transform 0.3s ease;
+    /* Smooth scrolling */
 }
 
 .components img {
     width: 100px;
+    cursor: pointer;
 }
 
 .components::before {
@@ -81,4 +92,150 @@ body {
     -ms-border-radius: 8px;
     -o-border-radius: 8px;
     cursor: pointer;
+}
+
+#popupDiv {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    background-color: #3333336c;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    -webkit-transform: translate(-50%, -50%);
+    -moz-transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    -o-transform: translate(-50%, -50%);
+}
+
+#editProperties {
+    background-color: #ffffff;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 350px;
+    text-align: center;
+    border: 1px solid #e0e0e0;
+    transform: translateY(-50%) translateX(-50%);
+    -webkit-transform: translateY(-50%) translateX(-50%);
+    -moz-transform: translateY(-50%) translateX(-50%);
+    -ms-transform: translateY(-50%) translateX(-50%);
+    -o-transform: translateY(-50%) translateX(-50%);
+}
+
+#editProperties h2 {
+    font-size: 1.6em;
+    margin-bottom: 15px;
+    color: #333;
+    font-weight: 600;
+}
+
+label {
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 500;
+}
+
+.direction {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 90%;
+    margin-bottom: 15px;
+}
+
+input[type="number"],
+input[type="text"] {
+    padding: 10px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    width: 55%;
+    height: 10px;
+    transition: border-color 0.3s ease;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+span {
+    font-size: 1.1em;
+    color: #555;
+    margin-left: 10px;
+}
+
+.rotation-labels {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.rotation-labels label {
+    font-size: 1em;
+    margin: 0 8px;
+    color: #666;
+    cursor: pointer;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.checkbox-container label {
+    margin-right: 8px;
+}
+
+/* Hover effects */
+input[type="radio"]:hover,
+input[type="checkbox"]:hover {
+    cursor: pointer;
+    background-color: #e0f7fa;
+}
+
+#editProperties:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+input[type="number"],
+input[type="text"] {
+    width: 100%;
+}
+
+.button {
+    background-color: #4caf50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: #45a049;
+}
+
+.mybutton {
+    background-color: firebrick;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.mybutton:hover {
+    background-color: rgb(123, 0, 0);
 }
