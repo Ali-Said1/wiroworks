@@ -599,107 +599,8 @@ function hmrAccept(bundle /*: ParcelRequire */ , id /*: string */ ) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
-//Component types
-// Resistance: Rohm
-// Dc Voltage source: dcV
-let currentId = 1;
-let components = [];
-let wires = [];
-const GRIDSIZE = 30;
-class Component extends (0, _konvaDefault.default).Image {
-    constructor(element){
-        super(element);
-        this.node1 = [
-            this.x(),
-            this.y() + this.height() / 2
-        ];
-        this.node2 = [
-            this.x() + this.width(),
-            this.y() + this.height() / 2
-        ];
-        this.horizontal = true;
-        this.type = '';
-        this.value = 0;
-        this.polarity = 'NULL';
-        this.isConnected = false;
-        this.ID = currentId++;
-        this.prefix = ' ';
-        this.shownText = true;
-        this.unit = '';
-    }
-    getFirstNode() {
-        return this.node1;
-    }
-    getSecondNode() {
-        return this.node2;
-    }
-    setValue(val) {
-        if (Number.isFinite(parseInt(val)) && val > 0) this.value = parseInt(val);
-    }
-    setPrefix(val) {
-        const validPrefixes = [
-            'p',
-            'n',
-            "\xb5",
-            'm',
-            'c',
-            ' ',
-            'k',
-            'M',
-            'G',
-            'T'
-        ];
-        // Check if val is in the validPrefixes array
-        if (validPrefixes.includes(val)) this.prefix = val; // Set the prefix if valid
-    }
-    setRotationvalue(val) {
-        if (Number.isFinite(parseInt(val)) && parseInt(val) == 0 || parseInt(val) == 90 || parseInt(val) == 180 || parseInt(val) == 270) this.rotation(parseInt(val));
-    }
-    getValue() {
-        return this.value;
-    }
-}
-class Resistance extends Component {
-    constructor(element){
-        super(element);
-        this.type = 'Resistance';
-        this.unit = '\u03A9';
-    }
-}
-class dcBattery extends Component {
-    constructor(element){
-        super(element);
-        this.type = 'DC Voltage Source';
-        this.unit = 'V';
-    }
-}
-class Switch extends Component {
-    constructor(element){
-        super(element);
-        this.state = 'on';
-        this.type = 'Switch';
-    }
-    toggle() {
-        this.state = this.state === 'off' ? 'on' : 'off';
-    }
-    getState() {
-        return this.state;
-    }
-}
-class Wire extends Component {
-    constructor(element){
-        super(element);
-        this.type = 'Wire';
-        this.connectedComponents = [];
-    }
-}
-class dcCurrentSource extends Component {
-    constructor(element){
-        super(element);
-        this.type = 'DC Current Source';
-        this.unit = 'A';
-    }
-}
+var _helpers = require("./helpers");
+var _classes = require("./classes");
 let width = window.innerWidth;
 let height = window.innerHeight;
 var stage = new (0, _konvaDefault.default).Stage({
@@ -707,358 +608,23 @@ var stage = new (0, _konvaDefault.default).Stage({
     width: width,
     height: height
 });
-let layer = new (0, _konvaDefault.default).Layer();
-stage.add(layer);
-function drawGrid(layer, gridSize) {
-    const width = stage.width();
-    const height = stage.height();
-    // Vertical lines
-    for(let x = 0; x <= width; x += gridSize){
-        const line = new (0, _konvaDefault.default).Line({
-            points: [
-                x,
-                0,
-                x,
-                height
-            ],
-            stroke: 'lightgray',
-            strokeWidth: 1,
-            listening: false
-        });
-        layer.add(line);
-    }
-    // Horizontal lines
-    for(let y = 0; y <= height; y += gridSize){
-        const line = new (0, _konvaDefault.default).Line({
-            points: [
-                0,
-                y,
-                width,
-                y
-            ],
-            stroke: 'lightgray',
-            strokeWidth: 1,
-            listening: false
-        });
-        layer.add(line);
-    }
-    // Circles at grid intersections
-    for(let x = 0; x <= width; x += gridSize)for(let y = 0; y <= height; y += gridSize){
-        const circle = new (0, _konvaDefault.default).Circle({
-            x: x,
-            y: y,
-            radius: 1,
-            fill: 'darkgray',
-            listening: false
-        });
-        layer.add(circle);
-    }
-    // Draw the layer
-    layer.draw();
-}
-drawGrid(layer, GRIDSIZE);
-//TODO: Handle snapping based on rotation
-function snapToGrid(value) {
-    return Math.round(value / GRIDSIZE) * GRIDSIZE;
-}
-function showDetails(component, unit) {
-    const html = `
-    <div id="editProperties">
-        <h2>${component.type}</h2>
-        <label for="componentval">${component.type} Value = </label>
-            <div class="direction">
-                <input type="number" name="componentval" id="componentval" min="0" value=${component.value}>
-                <div class="datalist-container" style="margin-right:20px;">
-                    <input type="text" list="metric-prefixes" id="prefix" value="${component.prefix}">
-                    <datalist id="metric-prefixes">
-                        <option value="p">
-                        <option value="n">
-                        <option value="\xb5">
-                        <option value="m">
-                        <option value="c">
-                        <option value=" ">
-                        <option value="k">
-                        <option value="M">
-                        <option value="G">
-                        <option value="T">
-                    </datalist>
-                </div>
-            <span>${component.unit}</span>
-        </div>
-        <div class="rotation-labels">
-            <label for="rotation">Rotation</label>
-            <select name="rotatesel" id="rotation" ${component.isConnected ? 'disabled' : ''}>
-            <option value="0" ${component.rotation() === 0 ? 'selected' : ''}>0</option>
-            <option value="90" ${component.rotation() === 90 ? 'selected' : ''}>90</option>
-            <option value="180" ${component.rotation() === 180 ? 'selected' : ''}>180</option>
-            <option value="270" ${component.rotation() === 270 ? 'selected' : ''}>270</option>
-            </select>
-        </div>
-        <div class="checkbox-container">
-            <label for="showtext">Show Value</label>
-            <select name="showntext" id="showtext">
-            <option value="true" ${component.shownText === true ? 'selected' : ''}>On</option>
-            <option value="false" ${component.shownText === false ? 'selected' : ''}>Off</option>
-            </select>
-        </div>
-         <button class="mybutton" id="deleteBtn">delete</button>
-        <button class="button" id="submitBtn">submit</button>
-    </div>
-
-        `;
-    const popupDiv = document.createElement('div');
-    popupDiv.id = 'popupDiv';
-    popupDiv.innerHTML = html;
-    document.body.appendChild(popupDiv);
-}
-function checkNearby(component, newcoords) {
-    for (const curr of components){
-        if (component.ID == curr.ID) continue;
-        let currx = curr.x();
-        let curry = curr.y();
-        let boundx = Math.abs(currx - newcoords[0]);
-        let boundy = Math.abs(curry - newcoords[1]);
-        if (component.horizontal) {
-            if (boundx <= 90 && boundy <= 30) return true;
-        } else {
-            if (boundx <= 30 && boundy <= 90) return true;
-        }
-    }
-    return false;
-}
-// =============================================================================================================
-//======================Helpers======================
-function addCompSVG(image, svg) {
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-function initializeComponent(component, image) {
-    component.x(75);
-    component.y(60);
-    component.image(image);
-    component.width(GRIDSIZE * 3);
-    component.draggable(true);
-    component.rotation(0);
-    component.offsetX(component.width() / 2);
-    component.offsetY(component.height() / 2);
-}
-function initializeComptext(component) {
-    const text = new (0, _konvaDefault.default).Text({
-        x: component.x(),
-        y: component.y() - 40,
-        text: `${component.getValue()}  ${component.unit}`,
-        fontSize: 20,
-        fontFamily: 'Calibri',
-        fill: 'black',
-        align: 'center',
-        weight: 'bold',
-        listening: false // Make it non-interactive
-    });
-    text.offsetX(text.width() / 2);
-    text.offsetY(text.height() / 2);
-    text.x(component.x());
-    text.y(text.y());
-    component.on('mouseover', ()=>{
-        document.body.style.cursor = 'pointer';
-    });
-    component.on('mouseout', ()=>{
-        document.body.style.cursor = 'default';
-    });
-    return text;
-}
-function componentHandler(component, text) {
-    layer.add(component);
-    components.push(component);
-    layer.add(text);
-    layer.draw();
-    let currcoords = [
-        component.x(),
-        component.y()
-    ];
-    component.on('dragstart', ()=>{
-        text.hide();
-    });
-    component.on('dragend', ()=>{
-        let newcoords = [];
-        if (component.horizontal) newcoords = [
-            snapToGrid(component.x()) - 15,
-            snapToGrid(component.y())
-        ];
-        else newcoords = [
-            snapToGrid(component.x()),
-            snapToGrid(component.y()) - 15
-        ];
-        dragendHandler(component, text, newcoords, currcoords);
-        text.show();
-        layer.batchDraw();
-    });
-    component.on('dblclick', ()=>{
-        showDetails(component, component.unit);
-        let currRotation = component.rotation();
-        const rotation = document.getElementsByClassName('rotation');
-        rotation.value = currRotation;
-        const deleteBtn = document.getElementById('deleteBtn');
-        const submitBtn = document.getElementById('submitBtn');
-        const popupDiv = document.getElementById('popupDiv');
-        document.body.addEventListener('click', (event)=>{
-            if (!popupDiv.contains(event.target)) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-        });
-        deleteBtn.addEventListener('click', ()=>{
-            popupDiv.remove();
-            components[component.ID] = 0;
-            component.remove();
-            text.remove();
-            layer.batchDraw();
-        });
-        submitBtn.addEventListener('click', ()=>{
-            const componentval = document.getElementById('componentval');
-            const prefix = document.getElementById('prefix');
-            const rotation = document.getElementById('rotation');
-            component.setValue(componentval.value);
-            component.setPrefix(prefix.value);
-            if (!component.isConnected) {
-                let previousOrient = component.horizontal;
-                let previousRotation = component.rotation();
-                component.setRotationvalue(rotation.value);
-                if (previousRotation == component.rotation() || Math.abs(previousRotation - component.rotation()) == 180) ;
-                else if (component.rotation() === 0 || component.rotation() === 180) {
-                    component.horizontal = true;
-                    if (!previousOrient) component.position({
-                        x: snapToGrid(component.x()) - 15,
-                        y: snapToGrid(component.y())
-                    });
-                } else {
-                    component.horizontal = false;
-                    if (previousOrient) component.position({
-                        x: snapToGrid(component.x()),
-                        y: snapToGrid(component.y()) - 15
-                    });
-                }
-                updateText(component, text);
-                handleCompNodes(component);
-            }
-            const shownText = document.getElementById('showtext');
-            if (shownText.value == 'true') component.shownText = true;
-            else if (shownText.value == 'false') component.shownText = false;
-            popupDiv.remove();
-            //TODO: Add update view function
-            updateText(component, text);
-            layer.batchDraw();
-        });
-    });
-}
-function handleCompNodes(component) {
-    const rotation = component.rotation();
-    if (rotation === 0) {
-        component.node1 = [
-            component.x() - component.width() / 2,
-            component.y()
-        ];
-        component.node2 = [
-            component.x() + component.width() / 2,
-            component.y()
-        ];
-    } else if (rotation == 90) {
-        component.node1 = [
-            component.x(),
-            component.y() - component.height() / 2
-        ];
-        component.node2 = [
-            component.x(),
-            component.y() + component.height() / 2
-        ];
-    } else if (rotation == 180) {
-        component.node1 = [
-            component.x() + component.width() / 2,
-            component.y()
-        ];
-        component.node2 = [
-            component.x() + component.width() / 2,
-            component.y()
-        ];
-    } else if (rotation == 270) {
-        component.node1 = [
-            component.x(),
-            component.y() + component.height() / 2
-        ];
-        component.node2 = [
-            component.x(),
-            component.y() - component.height() / 2
-        ];
-    }
-}
-function updateText(component, text) {
-    text.offsetX(text.width() / 2);
-    text.offsetY(text.height() / 2);
-    if (component.rotation() === 0) {
-        text.rotation(0);
-        text.position({
-            x: component.x(),
-            y: component.y() - 40
-        });
-    } else if (component.rotation() === 90) {
-        text.rotation(90);
-        text.position({
-            x: component.x() + 40,
-            y: component.y()
-        });
-    } else if (component.rotation() === 180) {
-        text.rotation(180);
-        text.position({
-            x: component.x(),
-            y: component.y() + 40
-        });
-    } else if (component.rotation() === 270) {
-        text.rotation(270);
-        text.position({
-            x: component.x() - 40,
-            y: component.y()
-        });
-    }
-    text.text(`${component.getValue()} ${component.prefix}${component.unit}`);
-    text.hide();
-    if (component.shownText) text.show();
-}
-function dragendHandler(component, text, newcoords, currcoords) {
-    if (checkNearby(component, newcoords)) {
-        component.position({
-            x: currcoords[0],
-            y: currcoords[1]
-        });
-        return;
-    }
-    component.position({
-        x: newcoords[0],
-        y: newcoords[1]
-    });
-    if (component.horizontal) {
-        component.node1 = [
-            newcoords[0],
-            newcoords[1] + component.height() / 2
-        ];
-        component.node2 = [
-            newcoords[0] + component.width(),
-            newcoords[1] + component.height() / 2
-        ];
-    } else {
-        component.node1 = [
-            newcoords[0] + component.width() / 2,
-            newcoords[1]
-        ];
-        component.node1 = [
-            newcoords[0] + component.width() / 2,
-            newcoords[1] + component.height()
-        ];
-    }
-    currcoords[0] = newcoords[0];
-    currcoords[1] = newcoords[1];
-    updateText(component, text);
-}
+//TODO: Check layer
+stage.add((0, _helpers.layer));
+(0, _helpers.drawGrid)(stage, (0, _helpers.layer), (0, _helpers.GRIDSIZE));
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', ()=>{
+    if ((0, _helpers.checkNearbybyCoords)([
+        75,
+        60
+    ])) {
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block';
+        setTimeout(()=>{
+            atOrigin.style.display = 'none';
+        }, 2000);
+        return;
+    }
     var imageObj = new Image();
     const resistanceSvg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 30">
@@ -1068,12 +634,12 @@ resistance.addEventListener('click', ()=>{
     </svg>
     
     `;
-    addCompSVG(imageObj, resistanceSvg);
+    (0, _helpers.addCompSVG)(imageObj, resistanceSvg);
     imageObj.onload = function() {
-        var resistanceElement = new Resistance({});
-        initializeComponent(resistanceElement, imageObj);
-        const text = initializeComptext(resistanceElement);
-        componentHandler(resistanceElement, text);
+        var resistanceElement = new (0, _classes.Resistance)({});
+        (0, _helpers.initializeComponent)(resistanceElement, imageObj);
+        const text = (0, _helpers.initializeComptext)(resistanceElement);
+        (0, _helpers.componentHandler)(resistanceElement, text);
     };
 });
 // =============================================================================================================
@@ -1081,6 +647,17 @@ resistance.addEventListener('click', ()=>{
 // =============================================================================================================
 const dcvs = document.getElementById('dcBattery');
 dcvs.addEventListener('click', ()=>{
+    if ((0, _helpers.checkNearbybyCoords)([
+        75,
+        60
+    ])) {
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block';
+        setTimeout(()=>{
+            atOrigin.style.display = 'none';
+        }, 2000);
+        return;
+    }
     var imageObj = new Image();
     const dcvsSvg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
@@ -1098,18 +675,35 @@ dcvs.addEventListener('click', ()=>{
   </svg>
   
   `;
-    addCompSVG(imageObj, dcvsSvg);
+    (0, _helpers.addCompSVG)(imageObj, dcvsSvg);
     imageObj.onload = function() {
-        var dcvsElement = new dcBattery({});
-        initializeComponent(dcvsElement, imageObj);
-        const text = initializeComptext(dcvsElement);
-        componentHandler(dcvsElement, text);
+        var dcvsElement = new (0, _classes.dcBattery)({});
+        (0, _helpers.initializeComponent)(dcvsElement, imageObj);
+        const text = (0, _helpers.initializeComptext)(dcvsElement);
+        (0, _helpers.componentHandler)(dcvsElement, text);
     };
 });
 // =============================================================================================================
 // DC Current source Logic
 const dccs = document.getElementById('dcCurrentSource');
 dccs.addEventListener('click', ()=>{
+    if ((0, _helpers.checkNearbybyCoords)([
+        75,
+        60
+    ])) {
+        if ((0, _helpers.checkNearbybyCoords)([
+            75,
+            60
+        ])) {
+            const atOrigin = document.getElementById('atOriginalert');
+            atOrigin.style.display = 'block';
+            setTimeout(()=>{
+                atOrigin.style.display = 'none';
+            }, 2000);
+            return;
+        }
+        return;
+    }
     var imageObj = new Image();
     const dccsSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
   <!-- Outer Circle (radius 25) -->
@@ -1124,25 +718,58 @@ dccs.addEventListener('click', ()=>{
 </svg>
 
 `;
-    addCompSVG(imageObj, dccsSvg);
+    (0, _helpers.addCompSVG)(imageObj, dccsSvg);
     imageObj.onload = function() {
-        var dccsElement = new dcCurrentSource({});
-        initializeComponent(dccsElement, imageObj);
-        const text = initializeComptext(dccsElement);
-        componentHandler(dccsElement, text);
+        var dccsElement = new (0, _classes.dcCurrentSource)({});
+        (0, _helpers.initializeComponent)(dccsElement, imageObj);
+        const text = (0, _helpers.initializeComptext)(dccsElement);
+        (0, _helpers.componentHandler)(dccsElement, text);
     };
+});
+// =============================================================================================================
+// Wire Logic
+let addingWire = false;
+const wire = document.getElementById('wire');
+wire.addEventListener('click', ()=>{
+    addingWire = true;
+    const wirealert = document.getElementById('wirealert');
+    wirealert.style.display = 'block';
+    setTimeout(()=>{
+        wirealert.style.display = 'none';
+    }, 2000);
+    (0, _helpers.drawNodes)();
+    window.addEventListener('keydown', (event)=>{
+        if (event.key === 'Escape') {
+            wirealert.style.display = 'none';
+            addingWire = false;
+            return;
+        }
+    });
+});
+let clickedNodes = [];
+document.body.addEventListener('click', (event)=>{
+    if (addingWire) (0, _helpers.nodeCircles).forEach((node)=>{
+        if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) {
+            if (clickedNodes.length < 2) clickedNodes.push(node);
+            if (clickedNodes.length === 2) {
+                addingWire = false;
+                (0, _helpers.removeNodes)();
+                if ((0, _helpers.checkConnectionNodes)(clickedNodes)) //drawWire(clickedNodes)
+                clickedNodes = [];
+            }
+        }
+    });
 }) // =============================================================================================================
  //TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
  //TODO: add isConnected to the components when wires are added is connected is true for the linked components
  //TODO: Implement current sources, then start the logic (tmr)
- //TODO: Add the rotation logic (after popup by Habiba)
  //TODO: calculations create a table for the output with all branch currents and node values
  //TODO: modified nodal analysis
  //TODO: Dependent sources
  //TODO: AC
 ;
 
-},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
+},{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
 "use strict";
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -12494,7 +12121,490 @@ const Threshold = function(imageData) {
 exports.Threshold = Threshold;
 Factory_1.Factory.addGetterSetter(Node_1.Node, 'threshold', 0.5, (0, Validators_1.getNumberValidator)(), Factory_1.Factory.afterSetFilter);
 
-},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"9LEjq":[function(require,module,exports,__globalThis) {
+},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"zhEXG":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "layer", ()=>layer);
+parcelHelpers.export(exports, "GRIDSIZE", ()=>GRIDSIZE);
+parcelHelpers.export(exports, "components", ()=>components);
+parcelHelpers.export(exports, "nodeCircles", ()=>nodeCircles);
+parcelHelpers.export(exports, "wires", ()=>wires);
+//========================================Add Component SVG Function==========================================
+parcelHelpers.export(exports, "addCompSVG", ()=>addCompSVG);
+//========================================Grid Drawing Function==========================================
+parcelHelpers.export(exports, "drawGrid", ()=>drawGrid);
+//========================================Show Component details Function==========================================
+parcelHelpers.export(exports, "showDetails", ()=>showDetails);
+//========================================Check Nearby Components Function==========================================
+parcelHelpers.export(exports, "checkNearby", ()=>checkNearby);
+parcelHelpers.export(exports, "checkNearbybyCoords", ()=>checkNearbybyCoords);
+//========================================Snap Components to Grid Function==========================================
+parcelHelpers.export(exports, "snapToGrid", ()=>snapToGrid);
+//========================================Component Initializer Function==========================================
+parcelHelpers.export(exports, "initializeComponent", ()=>initializeComponent);
+//========================================Component Text Initialzier Function==========================================
+parcelHelpers.export(exports, "initializeComptext", ()=>initializeComptext);
+//========================================Component Handler Function==========================================
+parcelHelpers.export(exports, "componentHandler", ()=>componentHandler);
+//========================================Dragend Handler Helper Function==========================================
+parcelHelpers.export(exports, "dragendHandler", ()=>dragendHandler);
+//========================================Component Nodes Handler Function==========================================
+parcelHelpers.export(exports, "handleCompNodes", ()=>handleCompNodes);
+//========================================Component Text Update Function==========================================
+parcelHelpers.export(exports, "updateText", ()=>updateText);
+//========================================Draw Nodes Function==========================================
+parcelHelpers.export(exports, "drawNodes", ()=>drawNodes);
+//========================================Remove Nodes Function==========================================
+parcelHelpers.export(exports, "removeNodes", ()=>removeNodes);
+//========================================Check Connection Nodes Function==========================================
+parcelHelpers.export(exports, "checkConnectionNodes", ()=>checkConnectionNodes) //========================================Helper Functions End==========================================
+;
+var _konva = require("konva");
+var _konvaDefault = parcelHelpers.interopDefault(_konva);
+let layer = new (0, _konvaDefault.default).Layer();
+const GRIDSIZE = 30;
+let components = []; // component != null
+let nodeCircles = [];
+let wires = [];
+function addCompSVG(image, svg) {
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+function drawGrid(stage, layer, gridSize) {
+    const width = stage.width();
+    const height = stage.height();
+    // Vertical lines
+    for(let x = 0; x <= width; x += gridSize){
+        const line = new (0, _konvaDefault.default).Line({
+            points: [
+                x,
+                0,
+                x,
+                height
+            ],
+            stroke: 'lightgray',
+            strokeWidth: 1,
+            listening: false
+        });
+        layer.add(line);
+    }
+    // Horizontal lines
+    for(let y = 0; y <= height; y += gridSize){
+        const line = new (0, _konvaDefault.default).Line({
+            points: [
+                0,
+                y,
+                width,
+                y
+            ],
+            stroke: 'lightgray',
+            strokeWidth: 1,
+            listening: false
+        });
+        layer.add(line);
+    }
+    // Circles at grid intersections
+    for(let x = 0; x <= width; x += gridSize)for(let y = 0; y <= height; y += gridSize){
+        const circle = new (0, _konvaDefault.default).Circle({
+            x: x,
+            y: y,
+            radius: 1,
+            fill: 'darkgray',
+            listening: false
+        });
+        layer.add(circle);
+    }
+    // Draw the layer
+    layer.draw();
+}
+function showDetails(component, unit) {
+    const html = `
+    <div id="editProperties">
+        <h2>${component.type}</h2>
+        <label for="componentval">${component.type} Value = </label>
+            <div class="direction">
+                <input type="number" name="componentval" id="componentval" min="0" value=${component.value}>
+                <div class="datalist-container" style="margin-right:20px;">
+                    <input type="text" list="metric-prefixes" id="prefix" value="${component.prefix}">
+                    <datalist id="metric-prefixes">
+                        <option value="p">
+                        <option value="n">
+                        <option value="\xb5">
+                        <option value="m">
+                        <option value="c">
+                        <option value=" ">
+                        <option value="k">
+                        <option value="M">
+                        <option value="G">
+                        <option value="T">
+                    </datalist>
+                </div>
+            <span>${component.unit}</span>
+        </div>
+        <div class="rotation-labels">
+            <label for="rotation">Rotation</label>
+            <select name="rotatesel" id="rotation" ${component.isConnected ? 'disabled' : ''}>
+            <option value="0" ${component.rotation() === 0 ? 'selected' : ''}>0</option>
+            <option value="90" ${component.rotation() === 90 ? 'selected' : ''}>90</option>
+            <option value="180" ${component.rotation() === 180 ? 'selected' : ''}>180</option>
+            <option value="270" ${component.rotation() === 270 ? 'selected' : ''}>270</option>
+            </select>
+        </div>
+        <div class="checkbox-container">
+            <label for="showtext">Show Value</label>
+            <select name="showntext" id="showtext">
+            <option value="true" ${component.shownText === true ? 'selected' : ''}>On</option>
+            <option value="false" ${component.shownText === false ? 'selected' : ''}>Off</option>
+            </select>
+        </div>
+         <button class="mybutton" id="deleteBtn">delete</button>
+        <button class="button" id="submitBtn">submit</button>
+    </div>
+
+        `;
+    const popupDiv = document.createElement('div');
+    popupDiv.id = 'popupDiv';
+    popupDiv.innerHTML = html;
+    document.body.appendChild(popupDiv);
+}
+function checkNearby(component, newcoords) {
+    for (const curr of components){
+        if (curr == null || component.ID == curr.ID) continue;
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - newcoords[0]);
+        let boundy = Math.abs(curry - newcoords[1]);
+        if (component.horizontal && curr.horizontal) {
+            if (boundx <= 90 && boundy <= 30) return true;
+        } else if (!component.horizontal && !curr.horizontal) {
+            if (boundx <= 30 && boundy <= 90) return true;
+        } else {
+            if (boundx <= 90 && boundy <= 90) return true;
+        }
+    }
+    return false;
+}
+function checkNearbybyCoords(coords) {
+    for (const curr of components){
+        if (curr == null) continue;
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - coords[0]);
+        let boundy = Math.abs(curry - coords[1]);
+        if (curr.horizontal) {
+            if (boundx <= 90 && boundy <= 30) return true;
+        } else {
+            if (boundx <= 90 && boundy <= 90) return true;
+        }
+    }
+    return false;
+}
+function snapToGrid(value) {
+    return Math.round(value / GRIDSIZE) * GRIDSIZE;
+}
+function initializeComponent(component, image) {
+    component.x(75);
+    component.y(60);
+    component.image(image);
+    component.width(GRIDSIZE * 3);
+    component.draggable(true);
+    component.rotation(0);
+    component.offsetX(component.width() / 2);
+    component.offsetY(component.height() / 2);
+}
+function initializeComptext(component) {
+    const text = new (0, _konvaDefault.default).Text({
+        x: component.x(),
+        y: component.y() - 40,
+        text: `${component.name} ${component.getValue()} ${component.prefix}${component.unit}`,
+        fontSize: 20,
+        fontFamily: 'Calibri',
+        fill: 'black',
+        align: 'center',
+        weight: 'bold',
+        listening: false // Make it non-interactive
+    });
+    text.offsetX(text.width() / 2);
+    text.offsetY(text.height() / 2);
+    text.x(component.x());
+    text.y(text.y());
+    component.on('mouseover', ()=>{
+        document.body.style.cursor = 'pointer';
+    });
+    component.on('mouseout', ()=>{
+        document.body.style.cursor = 'default';
+    });
+    return text;
+}
+function componentHandler(component, text) {
+    component.text = text;
+    layer.add(component);
+    components.push(component);
+    layer.add(component.text);
+    layer.draw();
+    let currcoords = [
+        component.x(),
+        component.y()
+    ];
+    component.on('dragstart', ()=>{
+        component.text.hide();
+    });
+    component.on('dragend', ()=>{
+        let newcoords = [];
+        if (component.horizontal) newcoords = [
+            snapToGrid(component.x()) - 15,
+            snapToGrid(component.y())
+        ];
+        else newcoords = [
+            snapToGrid(component.x()),
+            snapToGrid(component.y()) - 15
+        ];
+        dragendHandler(component, newcoords, currcoords);
+        //component.text.show();
+        layer.batchDraw();
+    });
+    component.on('dblclick', ()=>{
+        showDetails(component, component.unit);
+        let currRotation = component.rotation();
+        const rotation = document.getElementsByClassName('rotation');
+        rotation.value = currRotation;
+        const deleteBtn = document.getElementById('deleteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const popupDiv = document.getElementById('popupDiv');
+        document.body.addEventListener('click', (event)=>{
+            if (!popupDiv.contains(event.target)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        });
+        window.addEventListener('keydown', (event)=>{
+            if (event.key === 'Escape') popupDiv.remove();
+        });
+        deleteBtn.addEventListener('click', ()=>{
+            popupDiv.remove();
+            removeComponent(component);
+            text.remove();
+            layer.batchDraw();
+        });
+        submitBtn.addEventListener('click', ()=>{
+            const componentval = document.getElementById('componentval');
+            const prefix = document.getElementById('prefix');
+            const rotation = document.getElementById('rotation');
+            component.setValue(componentval.value);
+            component.setPrefix(prefix.value);
+            if (!component.node1Connected && !component.node2Connected) {
+                let previousOrient = component.horizontal;
+                let previousRotation = component.rotation();
+                component.setRotationvalue(rotation.value);
+                if (previousRotation == component.rotation() || Math.abs(previousRotation - component.rotation()) == 180) ;
+                else if (component.rotation() === 0 || component.rotation() === 180) {
+                    component.horizontal = true;
+                    if (checkNearby(component, [
+                        snapToGrid(component.x()) - 15,
+                        snapToGrid(component.y())
+                    ])) {
+                        component.horizontal = false;
+                        component.setRotationvalue(previousRotation);
+                        const norotate = document.getElementById('norotate');
+                        norotate.style.display = 'block';
+                        setTimeout(()=>{
+                            norotate.style.display = 'none';
+                        }, 2000);
+                    } else if (!previousOrient) component.position({
+                        x: snapToGrid(component.x()) - 15,
+                        y: snapToGrid(component.y())
+                    });
+                } else {
+                    component.horizontal = false;
+                    if (checkNearby(component, [
+                        snapToGrid(component.x()),
+                        snapToGrid(component.y()) - 15
+                    ])) {
+                        component.horizontal = true;
+                        component.setRotationvalue(previousRotation);
+                        const norotate = document.getElementById('norotate');
+                        norotate.style.display = 'block';
+                        setTimeout(()=>{
+                            norotate.style.display = 'none';
+                        }, 2000);
+                    } else if (previousOrient) component.position({
+                        x: snapToGrid(component.x()),
+                        y: snapToGrid(component.y()) - 15
+                    });
+                }
+                updateText(component, text);
+                handleCompNodes(component);
+            } else {
+                const disconnect = document.getElementById('disconnect');
+                disconnect.style.display = 'block';
+                setTimeout(()=>{
+                    disconnect.style.display = 'none';
+                }, 2000);
+            }
+            const shownText = document.getElementById('showtext');
+            if (shownText.value == 'true') component.shownText = true;
+            else if (shownText.value == 'false') component.shownText = false;
+            popupDiv.remove();
+            updateText(component, text);
+            layer.batchDraw();
+        });
+    });
+}
+function dragendHandler(component, newcoords, currcoords) {
+    if (checkNearby(component, newcoords)) {
+        component.position({
+            x: currcoords[0],
+            y: currcoords[1]
+        });
+        updateText(component, component.text);
+        return;
+    }
+    currcoords[0] = newcoords[0];
+    currcoords[1] = newcoords[1];
+    component.position({
+        x: currcoords[0],
+        y: currcoords[1]
+    });
+    handleCompNodes(component);
+    updateText(component, component.text);
+}
+function handleCompNodes(component) {
+    const rotation = component.rotation();
+    if (rotation === 0) {
+        component.node1 = [
+            component.x() - component.width() / 2,
+            component.y()
+        ];
+        component.node2 = [
+            component.x() + component.width() / 2,
+            component.y()
+        ];
+    } else if (rotation == 90) {
+        component.node1 = [
+            component.x(),
+            component.y() - component.height() / 2
+        ];
+        component.node2 = [
+            component.x(),
+            component.y() + component.height() / 2
+        ];
+    } else if (rotation == 180) {
+        component.node1 = [
+            component.x() + component.width() / 2,
+            component.y()
+        ];
+        component.node2 = [
+            component.x() - component.width() / 2,
+            component.y()
+        ];
+    } else if (rotation == 270) {
+        component.node1 = [
+            component.x(),
+            component.y() + component.height() / 2
+        ];
+        component.node2 = [
+            component.x(),
+            component.y() - component.height() / 2
+        ];
+    }
+}
+function updateText(component) {
+    component.text.offsetX(component.text.width() / 2);
+    component.text.offsetY(component.text.height() / 2);
+    if (component.rotation() === 0) {
+        component.text.rotation(0);
+        component.text.position({
+            x: component.x(),
+            y: component.y() - 40
+        });
+    } else if (component.rotation() === 90) {
+        component.text.rotation(90);
+        component.text.position({
+            x: component.x() + 40,
+            y: component.y()
+        });
+    } else if (component.rotation() === 180) {
+        component.text.rotation(180);
+        component.text.position({
+            x: component.x(),
+            y: component.y() + 40
+        });
+    } else if (component.rotation() === 270) {
+        component.text.rotation(270);
+        component.text.position({
+            x: component.x() - 40,
+            y: component.y()
+        });
+    }
+    component.text.text(`${component.name} ${component.getValue()} ${component.prefix}${component.unit}`);
+    component.text.hide();
+    if (component.shownText) component.text.show();
+}
+//========================================Remove Component Handler functions==========================================
+function removeComponent(component) {
+    let currNum = 1;
+    components.forEach((currComponent)=>{
+        if (currComponent !== null && currComponent.type === component.type && currComponent !== component) {
+            if (currComponent.name !== `${currComponent.getSymbol()}${currNum++}`) {
+                currComponent.name = `${currComponent.getSymbol()}${currNum - 1}`;
+                currComponent.text.text(`${currComponent.name} ${component.getValue()} ${component.prefix}${component.unit}`);
+            }
+        }
+    });
+    component.decreaseCount();
+    components[component.ID] = null;
+    component.remove();
+}
+function drawNodes() {
+    components.forEach((currComponent)=>{
+        if (currComponent != null) {
+            if (!currComponent.node1Connected) {
+                const node = new (0, _konvaDefault.default).Circle({
+                    x: currComponent.node1[0],
+                    y: currComponent.node1[1],
+                    radius: 4,
+                    fill: '#772F1A'
+                });
+                nodeCircles.push(node);
+            }
+            if (!currComponent.node2Connected) {
+                const node = new (0, _konvaDefault.default).Circle({
+                    x: currComponent.node2[0],
+                    y: currComponent.node2[1],
+                    radius: 4,
+                    fill: '#772F1A'
+                });
+                nodeCircles.push(node);
+            }
+        }
+    });
+    nodeCircles.forEach((node)=>{
+        node.on('mouseover', ()=>{
+            document.body.style.cursor = 'pointer';
+        });
+        node.on('mouseout', ()=>{
+            document.body.style.cursor = 'default';
+        });
+        layer.add(node);
+    });
+    layer.batchDraw();
+}
+function removeNodes() {
+    nodeCircles.forEach((node)=>{
+        node.remove();
+    });
+    nodeCircles = [];
+    layer.batchDraw();
+}
+function checkConnectionNodes(clickedNodes) {
+    components.forEach((component)=>{
+        if (component != null) for(let i = 0; i < 2; i++){
+            if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y() && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) return false;
+        }
+    });
+    return true;
+}
+
+},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"9LEjq":[function(require,module,exports,__globalThis) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -12524,6 +12634,147 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
+},{}],"9HPQv":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//==============================================Resistance Component Class=============================================
+parcelHelpers.export(exports, "Resistance", ()=>Resistance);
+//===============================================DC Voltage Source Component Class=============================================
+parcelHelpers.export(exports, "dcBattery", ()=>dcBattery);
+//===============================================Switch Component Class=============================================
+parcelHelpers.export(exports, "Switch", ()=>Switch);
+//===============================================Wire Component Class=============================================
+parcelHelpers.export(exports, "Wire", ()=>Wire);
+//===============================================DC Current Source Component Class=============================================
+parcelHelpers.export(exports, "dcCurrentSource", ()=>dcCurrentSource);
+var _konva = require("konva");
+var _konvaDefault = parcelHelpers.interopDefault(_konva);
+let currentId = 0;
+//==============================================Base Component Class=============================================
+class Component extends (0, _konvaDefault.default).Image {
+    constructor(element){
+        super(element);
+        this.name = '';
+        this.node1 = [
+            this.x(),
+            this.y() + this.height() / 2
+        ];
+        this.node2 = [
+            this.x() + this.width(),
+            this.y() + this.height() / 2
+        ];
+        this.horizontal = true;
+        this.type = '';
+        this.value = 0;
+        this.polarity = 'NULL';
+        this.node1Connected = false;
+        this.node2Connected = false;
+        this.ID = currentId++;
+        this.prefix = ' ';
+        this.shownText = true;
+        this.unit = '';
+        this.text = null;
+    }
+    getFirstNode() {
+        return this.node1;
+    }
+    getSecondNode() {
+        return this.node2;
+    }
+    setValue(val) {
+        if (Number.isFinite(parseInt(val)) && val > 0) this.value = parseInt(val);
+    }
+    setPrefix(val) {
+        const validPrefixes = [
+            'p',
+            'n',
+            "\xb5",
+            'm',
+            'c',
+            ' ',
+            'k',
+            'M',
+            'G',
+            'T'
+        ];
+        // Check if val is in the validPrefixes array
+        if (validPrefixes.includes(val)) this.prefix = val; // Set the prefix if valid
+    }
+    setRotationvalue(val) {
+        if (Number.isFinite(parseInt(val)) && parseInt(val) == 0 || parseInt(val) == 90 || parseInt(val) == 180 || parseInt(val) == 270) this.rotation(parseInt(val));
+    }
+    getValue() {
+        return this.value;
+    }
+}
+class Resistance extends Component {
+    static count = 1;
+    constructor(element){
+        super(element);
+        this.type = 'Resistance';
+        this.unit = '\u03A9';
+        this.name = `R${Resistance.count++}`;
+    }
+    getSymbol() {
+        return 'R';
+    }
+    decreaseCount() {
+        Resistance.count--;
+    }
+}
+class dcBattery extends Component {
+    static count = 1;
+    constructor(element){
+        super(element);
+        this.type = 'DC Voltage Source';
+        this.unit = 'V';
+        this.name = `Vs${dcBattery.count++}`;
+    }
+    getSymbol() {
+        return 'Vs';
+    }
+    decreaseCount() {
+        dcBattery.count--;
+    }
+}
+class Switch extends Component {
+    static count = 1;
+    constructor(element){
+        super(element);
+        this.state = 'on';
+        this.type = 'Switch';
+    }
+    toggle() {
+        this.state = this.state === 'off' ? 'on' : 'off';
+    }
+    getState() {
+        return this.state;
+    }
+}
+class Wire {
+    constructor(){
+        this.type = 'Wire';
+        this.gridPoints = [];
+        this.drawnLines = [];
+        this.connectedComponents = [];
+    }
+}
+class dcCurrentSource extends Component {
+    static count = 1;
+    constructor(element){
+        super(element);
+        this.type = 'DC Current Source';
+        this.unit = 'A';
+        this.name = `Cs${dcCurrentSource.count++}`;
+    }
+    getSymbol() {
+        return 'Cs';
+    }
+    decreaseCount() {
+        dcCurrentSource.count--;
+    }
+}
+
+},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
 
 //# sourceMappingURL=index.61542594.js.map
