@@ -239,3 +239,25 @@ input[type="text"] {
 .mybutton:hover {
     background-color: rgb(123, 0, 0);
 }
+
+.alert {
+    display: none;
+    position: absolute;
+    padding: 20px 30px;
+    font-size: 20px;
+    right: 30px;
+    bottom: 30px;
+    background-color: #4CAF50;
+    color: #fff;
+}
+
+.redalert {
+    display: none;
+    position: absolute;
+    padding: 20px 30px;
+    font-size: 20px;
+    right: 30px;
+    bottom: 30px;
+    background-color: #9a3131;
+    color: #fff;
+}
