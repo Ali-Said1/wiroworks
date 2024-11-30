@@ -1,10 +1,11 @@
 import Konva from 'konva'
-import { layer, GRIDSIZE, addCompSVG, drawGrid, initializeComponent, componentHandler, initializeComptext, components, drawNodes, checkNearbybyCoords, nodeCircles, removeNodes, checkConnectionNodes } from './helpers';
+import { layer, GRIDSIZE, addCompSVG, drawGrid, initializeComponent, componentHandler, initializeComptext, components, drawNodes, checkNearbybyCoords, nodeCircles, removeNodes, checkConnectionNodes, aStar, nodes, flashMsg, addingWire, setAddingWire, drawWire } from './helpers';
 
 import { Resistance, dcBattery, Switch, Wire, dcCurrentSource } from './classes';
 
 let width = window.innerWidth
 let height = window.innerHeight
+//let addingWire = false;
 
 var stage = new Konva.Stage({
     container: 'container',
@@ -12,7 +13,6 @@ var stage = new Konva.Stage({
     height: height
 })
 
-//TODO: Check layer
 stage.add(layer);
 
 drawGrid(stage, layer, GRIDSIZE);
@@ -20,6 +20,8 @@ drawGrid(stage, layer, GRIDSIZE);
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', () => {
+    console.log(addingWire)
+    if (addingWire) return;
     if (checkNearbybyCoords([75, 60])) {
         const atOrigin = document.getElementById('atOriginalert');
         atOrigin.style.display = 'block'
@@ -52,6 +54,7 @@ resistance.addEventListener('click', () => {
 const dcvs = document.getElementById('dcBattery');
 
 dcvs.addEventListener('click', () => {
+    if (addingWire) return;
     if (checkNearbybyCoords([75, 60])) {
         const atOrigin = document.getElementById('atOriginalert');
         atOrigin.style.display = 'block'
@@ -90,6 +93,7 @@ dcvs.addEventListener('click', () => {
 const dccs = document.getElementById('dcCurrentSource');
 
 dccs.addEventListener('click', () => {
+    if (addingWire) return;
     if (checkNearbybyCoords([75, 60])) {
         if (checkNearbybyCoords([75, 60])) {
             const atOrigin = document.getElementById('atOriginalert');
@@ -125,10 +129,11 @@ dccs.addEventListener('click', () => {
 })
 // =============================================================================================================
 // Wire Logic
-let addingWire = false;
+let clickedNodes = [];
 const wire = document.getElementById('wire');
 wire.addEventListener('click', () => {
-    addingWire = true;
+    if (addingWire) return;
+    setAddingWire(true)
     const wirealert = document.getElementById('wirealert');
     wirealert.style.display = 'block'
     setTimeout(() => {
@@ -138,27 +143,46 @@ wire.addEventListener('click', () => {
     window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             wirealert.style.display = 'none';
-            addingWire = false;
+            setAddingWire(false);
+            removeNodes();
+            clickedNodes = [];
             return;
         }
     })
 })
 
-let clickedNodes = [];
 document.body.addEventListener('click', (event) => {
     if (addingWire) {
+        let nodeClicked = false;
+
         nodeCircles.forEach((node) => {
-            if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) {
+            if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) nodeClicked = true;
+        })
+        if (!nodeClicked) {
+            console.log('stopped prop')
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const differentnode = document.getElementById('differentnode');
+        nodeCircles.forEach((node) => {
+            if (Math.abs(event.x - node.x()) < 4 && Math.abs(event.y - node.y()) < 4) {
                 if (clickedNodes.length < 2) {
-                    clickedNodes.push(node);
+                    if (clickedNodes.find((cnode) => cnode === node)) {
+                        flashMsg(differentnode);
+                    }
+                    else if (clickedNodes.length === 1 && checkConnectionNodes([...clickedNodes, node])) {
+                        flashMsg(differentnode);
+                        node.fill('#772F1A')
+                    }
+                    else {
+                        clickedNodes.push(node);
+                    }
                 }
                 if (clickedNodes.length === 2) {
-                    addingWire = false;
+                    setAddingWire(false);
                     removeNodes();
-                    if (checkConnectionNodes(clickedNodes)) {
-                        //drawWire(clickedNodes)
-                        clickedNodes = [];
-                    }
+                    drawWire(stage, clickedNodes);
+                    clickedNodes = [];
                 }
             }
         })

@@ -1,11 +1,21 @@
+import { Wire } from './classes';
 import Konva from 'konva'
 
 export let layer = new Konva.Layer();
 export const GRIDSIZE = 30;
 export let components = []; // component != null
-export let nodeCircles = [];
-export let wires = [];
+export let nodeCircles = []; // A list of the drawn circles about each node
+export let wires = []; // A list of all the wire generated
+export let nodes = []; // All the nodes within the active program
+export let addingWire = false;
 
+export function setAddingWire(value) {
+    addingWire = value;
+}
+
+export function getAddingWire() {
+    return addingWire;
+}
 //========================================Add Component SVG Function==========================================
 export function addCompSVG(image, svg) {
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
@@ -39,8 +49,8 @@ export function drawGrid(stage, layer, gridSize) {
     }
 
     // Circles at grid intersections
-    for (let x = 0; x <= width; x += gridSize) {
-        for (let y = 0; y <= height; y += gridSize) {
+    for (let y = 0; y <= height; y += gridSize) {
+        for (let x = 0; x <= width; x += gridSize) {
             const circle = new Konva.Circle({
                 x: x,
                 y: y,
@@ -49,15 +59,39 @@ export function drawGrid(stage, layer, gridSize) {
                 listening: false,
             });
             layer.add(circle);
+            // Generate Graph
+            if (x > 0 && y > 0) {
+                let node = {};
+
+                let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
+                let currentRow = (y - GRIDSIZE) / GRIDSIZE
+                node.index = (x - GRIDSIZE) / GRIDSIZE + (currentRow * (rownumberofNodes + 1))
+
+                node.occupied = false;
+                node.position = { x: x, y: y };
+                if (x !== GRIDSIZE) {
+                    node.left = { index: (x - 2 * GRIDSIZE) / GRIDSIZE + (currentRow * (rownumberofNodes + 1)) }
+                }
+                if (y !== GRIDSIZE) {
+                    node.top = { index: (x - GRIDSIZE) / GRIDSIZE + ((currentRow - 1) * (rownumberofNodes + 1)) };
+                }
+                if (x !== width - GRIDSIZE) {
+                    node.right = { index: x / GRIDSIZE + (currentRow * (rownumberofNodes + 1)) }
+                }
+                if (y !== height - GRIDSIZE) {
+                    node.bottom = { index: (x - GRIDSIZE) / GRIDSIZE + ((currentRow + 1) * (rownumberofNodes + 1)) }
+                }
+                nodes.push(node);
+            }
         }
     }
-
+    console.log(nodes)
     // Draw the layer
     layer.draw();
 }
 
 //========================================Show Component details Function==========================================
-export function showDetails(component, unit) {
+export function showDetails(component) {
     const html = `
     <div id="editProperties">
         <h2>${component.type}</h2>
@@ -171,6 +205,8 @@ export function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2)
     component.offsetY(component.height() / 2)
+    component.node1 = [component.x() - component.width() / 2, component.y()]
+    component.node2 = [component.x() + component.width() / 2, component.y()]
 }
 //========================================Component Text Initialzier Function==========================================
 export function initializeComptext(component) {
@@ -220,7 +256,8 @@ export function componentHandler(component, text) {
         layer.batchDraw();
     });
     component.on('dblclick', () => {
-        showDetails(component, component.unit);
+        if (addingWire) return;
+        showDetails(component);
         let currRotation = component.rotation();
         const rotation = document.getElementsByClassName('rotation');
         rotation.value = currRotation;
@@ -384,6 +421,7 @@ function removeComponent(component) {
 }
 //========================================Draw Nodes Function==========================================
 export function drawNodes() {
+    //TODO: Draw wired nodes as nodes too
     components.forEach((currComponent) => {
         if (currComponent != null) {
             if (!currComponent.node1Connected) {
@@ -413,6 +451,9 @@ export function drawNodes() {
         node.on('mouseout', () => {
             document.body.style.cursor = 'default';
         })
+        node.on('click', () => {
+            node.fill('green')
+        })
         layer.add(node)
     })
     layer.batchDraw();
@@ -427,16 +468,117 @@ export function removeNodes() {
 }
 //========================================Check Connection Nodes Function==========================================
 export function checkConnectionNodes(clickedNodes) {
+    let sameComp = false;
     components.forEach((component) => {
         if (component != null) {
             for (let i = 0; i < 2; i++) {
                 if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y()
                     && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) {
-                    return false;
+                    sameComp = true;
                 }
             }
         }
     })
-    return true;
+    return sameComp;
+}
+//========================================A* algorithm==========================================
+export function heuristic(startNode, endNode) {
+    return Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
+}
+
+export function reconstructPath(node) {
+    let path = [];
+    while (node) {
+        path.push(node);
+        node = node.parent;
+    }
+    return path.reverse(); // Reverse the path to start-to-goal order
+}
+
+export function aStar(startNode, endNode) {
+    let openSet = [startNode]; // Nodes to explore
+    let closedSet = []; // Nodes already explored
+
+    nodes.forEach(node => {
+        node.g = Infinity; // Cost to reach this node (default: Infinity)
+        node.h = 0; // Heuristic cost estimate (default: 0)
+        node.f = node.g + node.h; // Total estimated cost
+        node.parent = null; // Track the path
+    });
+    startNode.g = 0; // Cost to reach the start node is 0
+    startNode.h = heuristic(startNode.position, endNode.position); // Heuristic to goal
+    startNode.f = startNode.g + startNode.h; // Total estimated cost
+
+    while (openSet.length > 0) {
+        // Find the node in openSet with the lowest f value
+        let currentNode = openSet.reduce((a, b) => (a.f < b.f ? a : b));
+
+        // If we reached the goal node, reconstruct the path
+        if (currentNode === endNode) {
+            return reconstructPath(currentNode);
+        }
+
+        // Remove currentNode from openSet and add it to closedSet
+        openSet = openSet.filter(node => node !== currentNode);
+        closedSet.push(currentNode);
+
+        // Explore all neighbors of the currentNode
+        ["left", "top", "right", "bottom"].forEach(dir => {
+            let neighbor = nodes[currentNode[dir].index];
+            if (!neighbor || neighbor.occupied || closedSet.includes(neighbor)) {
+                return;
+            }
+
+            // Calculate the tentative g score
+            let tentativeG = currentNode.g + 1; // Assuming uniform cost for each step
+
+            // If the neighbor is not in openSet, add it
+            if (!openSet.includes(neighbor)) {
+                openSet.push(neighbor);
+            } else if (tentativeG >= neighbor.g) { // tentativeg is one step + the currentg, by default tentativeG is Infinity, if it was set during exploring some path, it will have a comparable value
+                return; // If this path is not better, skip it
+            }
+
+            // Update the neighbor's g, h, f values and set its parent
+            neighbor.g = tentativeG;
+            neighbor.h = heuristic(neighbor.position, endNode.position);
+            neighbor.f = neighbor.g + neighbor.h;
+            neighbor.parent = currentNode; // Set the parent to track the path
+        });
+    }
+
+    // If we exhaust the openSet without finding the goal, return null (no path found)
+    return null;
+}
+//========================================Flash Message Function==========================================
+export function flashMsg(msg) {
+    msg.style.display = 'block';
+    setTimeout(() => {
+        msg.style.display = 'none'
+    }, 2000)
+}
+//========================================Draw Wire Function==========================================
+export function drawWire(stage, clickedNodes) {
+    const width = stage.width();
+    const height = stage.height();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
+    let node1Row = (clickedNodes[0].y() - GRIDSIZE) / GRIDSIZE
+    let node1_index = (clickedNodes[0].x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
+    let node2Row = (clickedNodes[1].y() - GRIDSIZE) / GRIDSIZE
+    let node2_index = (clickedNodes[1].x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+    let wireNodes = aStar(nodes[node1_index], nodes[node2_index]);
+    console.log(wireNodes)
+    if (!wireNodes) return false;
+    let wire = new Wire();
+    wire.gridPoints = wireNodes;
+    for (let i = 0; i < wireNodes.length - 1; i++) {
+        const line = new Konva.Line({
+            points: [wireNodes[i].position.x, wireNodes[i].position.y, wireNodes[i + 1].position.x, wireNodes[i + 1].position.y],
+            stroke: 'black',
+            strokeWidth: 2,
+            listening: false,
+        });
+        layer.add(line);
+    }
 }
 //========================================Helper Functions End==========================================
