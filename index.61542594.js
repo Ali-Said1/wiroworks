@@ -603,17 +603,19 @@ var _helpers = require("./helpers");
 var _classes = require("./classes");
 let width = window.innerWidth;
 let height = window.innerHeight;
+//let addingWire = false;
 var stage = new (0, _konvaDefault.default).Stage({
     container: 'container',
     width: width,
     height: height
 });
-//TODO: Check layer
 stage.add((0, _helpers.layer));
 (0, _helpers.drawGrid)(stage, (0, _helpers.layer), (0, _helpers.GRIDSIZE));
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', ()=>{
+    console.log((0, _helpers.addingWire));
+    if (0, _helpers.addingWire) return;
     if ((0, _helpers.checkNearbybyCoords)([
         75,
         60
@@ -647,6 +649,7 @@ resistance.addEventListener('click', ()=>{
 // =============================================================================================================
 const dcvs = document.getElementById('dcBattery');
 dcvs.addEventListener('click', ()=>{
+    if (0, _helpers.addingWire) return;
     if ((0, _helpers.checkNearbybyCoords)([
         75,
         60
@@ -687,6 +690,7 @@ dcvs.addEventListener('click', ()=>{
 // DC Current source Logic
 const dccs = document.getElementById('dcCurrentSource');
 dccs.addEventListener('click', ()=>{
+    if (0, _helpers.addingWire) return;
     if ((0, _helpers.checkNearbybyCoords)([
         75,
         60
@@ -728,10 +732,11 @@ dccs.addEventListener('click', ()=>{
 });
 // =============================================================================================================
 // Wire Logic
-let addingWire = false;
+let clickedNodes = [];
 const wire = document.getElementById('wire');
 wire.addEventListener('click', ()=>{
-    addingWire = true;
+    if (0, _helpers.addingWire) return;
+    (0, _helpers.setAddingWire)(true);
     const wirealert = document.getElementById('wirealert');
     wirealert.style.display = 'block';
     setTimeout(()=>{
@@ -741,24 +746,46 @@ wire.addEventListener('click', ()=>{
     window.addEventListener('keydown', (event)=>{
         if (event.key === 'Escape') {
             wirealert.style.display = 'none';
-            addingWire = false;
+            (0, _helpers.setAddingWire)(false);
+            (0, _helpers.removeNodes)();
+            clickedNodes = [];
             return;
         }
     });
 });
-let clickedNodes = [];
 document.body.addEventListener('click', (event)=>{
-    if (addingWire) (0, _helpers.nodeCircles).forEach((node)=>{
-        if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) {
-            if (clickedNodes.length < 2) clickedNodes.push(node);
-            if (clickedNodes.length === 2) {
-                addingWire = false;
-                (0, _helpers.removeNodes)();
-                if ((0, _helpers.checkConnectionNodes)(clickedNodes)) //drawWire(clickedNodes)
-                clickedNodes = [];
-            }
+    if (0, _helpers.addingWire) {
+        let nodeClicked = false;
+        (0, _helpers.nodeCircles).forEach((node)=>{
+            if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) nodeClicked = true;
+        });
+        if (!nodeClicked) {
+            console.log('stopped prop');
+            event.preventDefault();
+            event.stopPropagation();
         }
-    });
+        const differentnode = document.getElementById('differentnode');
+        (0, _helpers.nodeCircles).forEach((node)=>{
+            if (Math.abs(event.x - node.x()) < 4 && Math.abs(event.y - node.y()) < 4) {
+                if (clickedNodes.length < 2) {
+                    if (clickedNodes.find((cnode)=>cnode === node)) (0, _helpers.flashMsg)(differentnode);
+                    else if (clickedNodes.length === 1 && (0, _helpers.checkConnectionNodes)([
+                        ...clickedNodes,
+                        node
+                    ])) {
+                        (0, _helpers.flashMsg)(differentnode);
+                        node.fill('#772F1A');
+                    } else clickedNodes.push(node);
+                }
+                if (clickedNodes.length === 2) {
+                    (0, _helpers.setAddingWire)(false);
+                    (0, _helpers.removeNodes)();
+                    (0, _helpers.drawWire)(stage, clickedNodes);
+                    clickedNodes = [];
+                }
+            }
+        });
+    }
 }) // =============================================================================================================
  //TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
  //TODO: add isConnected to the components when wires are added is connected is true for the linked components
@@ -769,7 +796,7 @@ document.body.addEventListener('click', (event)=>{
  //TODO: AC
 ;
 
-},{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
+},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","./helpers":"zhEXG","./classes":"9HPQv"}],"geBjd":[function(require,module,exports,__globalThis) {
 "use strict";
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -12121,7 +12148,37 @@ const Threshold = function(imageData) {
 exports.Threshold = Threshold;
 Factory_1.Factory.addGetterSetter(Node_1.Node, 'threshold', 0.5, (0, Validators_1.getNumberValidator)(), Factory_1.Factory.afterSetFilter);
 
-},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"zhEXG":[function(require,module,exports,__globalThis) {
+},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"9LEjq":[function(require,module,exports,__globalThis) {
+exports.interopDefault = function(a) {
+    return a && a.__esModule ? a : {
+        default: a
+    };
+};
+exports.defineInteropFlag = function(a) {
+    Object.defineProperty(a, '__esModule', {
+        value: true
+    });
+};
+exports.exportAll = function(source, dest) {
+    Object.keys(source).forEach(function(key) {
+        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
+        Object.defineProperty(dest, key, {
+            enumerable: true,
+            get: function() {
+                return source[key];
+            }
+        });
+    });
+    return dest;
+};
+exports.export = function(dest, destName, get) {
+    Object.defineProperty(dest, destName, {
+        enumerable: true,
+        get: get
+    });
+};
+
+},{}],"zhEXG":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "layer", ()=>layer);
@@ -12129,6 +12186,10 @@ parcelHelpers.export(exports, "GRIDSIZE", ()=>GRIDSIZE);
 parcelHelpers.export(exports, "components", ()=>components);
 parcelHelpers.export(exports, "nodeCircles", ()=>nodeCircles);
 parcelHelpers.export(exports, "wires", ()=>wires);
+parcelHelpers.export(exports, "nodes", ()=>nodes);
+parcelHelpers.export(exports, "addingWire", ()=>addingWire);
+parcelHelpers.export(exports, "setAddingWire", ()=>setAddingWire);
+parcelHelpers.export(exports, "getAddingWire", ()=>getAddingWire);
 //========================================Add Component SVG Function==========================================
 parcelHelpers.export(exports, "addCompSVG", ()=>addCompSVG);
 //========================================Grid Drawing Function==========================================
@@ -12157,15 +12218,32 @@ parcelHelpers.export(exports, "drawNodes", ()=>drawNodes);
 //========================================Remove Nodes Function==========================================
 parcelHelpers.export(exports, "removeNodes", ()=>removeNodes);
 //========================================Check Connection Nodes Function==========================================
-parcelHelpers.export(exports, "checkConnectionNodes", ()=>checkConnectionNodes) //========================================Helper Functions End==========================================
+parcelHelpers.export(exports, "checkConnectionNodes", ()=>checkConnectionNodes);
+//========================================A* algorithm==========================================
+parcelHelpers.export(exports, "heuristic", ()=>heuristic);
+parcelHelpers.export(exports, "reconstructPath", ()=>reconstructPath);
+parcelHelpers.export(exports, "aStar", ()=>aStar);
+//========================================Flash Message Function==========================================
+parcelHelpers.export(exports, "flashMsg", ()=>flashMsg);
+//========================================Draw Wire Function==========================================
+parcelHelpers.export(exports, "drawWire", ()=>drawWire) //========================================Helper Functions End==========================================
 ;
+var _classes = require("./classes");
 var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
 let layer = new (0, _konvaDefault.default).Layer();
 const GRIDSIZE = 30;
 let components = []; // component != null
-let nodeCircles = [];
-let wires = [];
+let nodeCircles = []; // A list of the drawn circles about each node
+let wires = []; // A list of all the wire generated
+let nodes = []; // All the nodes within the active program
+let addingWire = false;
+function setAddingWire(value) {
+    addingWire = value;
+}
+function getAddingWire() {
+    return addingWire;
+}
 function addCompSVG(image, svg) {
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -12203,7 +12281,7 @@ function drawGrid(stage, layer, gridSize) {
         layer.add(line);
     }
     // Circles at grid intersections
-    for(let x = 0; x <= width; x += gridSize)for(let y = 0; y <= height; y += gridSize){
+    for(let y = 0; y <= height; y += gridSize)for(let x = 0; x <= width; x += gridSize){
         const circle = new (0, _konvaDefault.default).Circle({
             x: x,
             y: y,
@@ -12212,11 +12290,37 @@ function drawGrid(stage, layer, gridSize) {
             listening: false
         });
         layer.add(circle);
+        // Generate Graph
+        if (x > 0 && y > 0) {
+            let node = {};
+            let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE);
+            let currentRow = (y - GRIDSIZE) / GRIDSIZE;
+            node.index = (x - GRIDSIZE) / GRIDSIZE + currentRow * (rownumberofNodes + 1);
+            node.occupied = false;
+            node.position = {
+                x: x,
+                y: y
+            };
+            if (x !== GRIDSIZE) node.left = {
+                index: (x - 2 * GRIDSIZE) / GRIDSIZE + currentRow * (rownumberofNodes + 1)
+            };
+            if (y !== GRIDSIZE) node.top = {
+                index: (x - GRIDSIZE) / GRIDSIZE + (currentRow - 1) * (rownumberofNodes + 1)
+            };
+            if (x !== width - GRIDSIZE) node.right = {
+                index: x / GRIDSIZE + currentRow * (rownumberofNodes + 1)
+            };
+            if (y !== height - GRIDSIZE) node.bottom = {
+                index: (x - GRIDSIZE) / GRIDSIZE + (currentRow + 1) * (rownumberofNodes + 1)
+            };
+            nodes.push(node);
+        }
     }
+    console.log(nodes);
     // Draw the layer
     layer.draw();
 }
-function showDetails(component, unit) {
+function showDetails(component) {
     const html = `
     <div id="editProperties">
         <h2>${component.type}</h2>
@@ -12310,6 +12414,14 @@ function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2);
     component.offsetY(component.height() / 2);
+    component.node1 = [
+        component.x() - component.width() / 2,
+        component.y()
+    ];
+    component.node2 = [
+        component.x() + component.width() / 2,
+        component.y()
+    ];
 }
 function initializeComptext(component) {
     const text = new (0, _konvaDefault.default).Text({
@@ -12363,7 +12475,8 @@ function componentHandler(component, text) {
         layer.batchDraw();
     });
     component.on('dblclick', ()=>{
-        showDetails(component, component.unit);
+        if (addingWire) return;
+        showDetails(component);
         let currRotation = component.rotation();
         const rotation = document.getElementsByClassName('rotation');
         rotation.value = currRotation;
@@ -12555,6 +12668,7 @@ function removeComponent(component) {
     component.remove();
 }
 function drawNodes() {
+    //TODO: Draw wired nodes as nodes too
     components.forEach((currComponent)=>{
         if (currComponent != null) {
             if (!currComponent.node1Connected) {
@@ -12584,6 +12698,9 @@ function drawNodes() {
         node.on('mouseout', ()=>{
             document.body.style.cursor = 'default';
         });
+        node.on('click', ()=>{
+            node.fill('green');
+        });
         layer.add(node);
     });
     layer.batchDraw();
@@ -12596,45 +12713,107 @@ function removeNodes() {
     layer.batchDraw();
 }
 function checkConnectionNodes(clickedNodes) {
+    let sameComp = false;
     components.forEach((component)=>{
-        if (component != null) for(let i = 0; i < 2; i++){
-            if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y() && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) return false;
+        if (component != null) {
+            for(let i = 0; i < 2; i++)if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y() && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) sameComp = true;
         }
     });
-    return true;
+    return sameComp;
+}
+function heuristic(startNode, endNode) {
+    return Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
+}
+function reconstructPath(node) {
+    let path = [];
+    while(node){
+        path.push(node);
+        node = node.parent;
+    }
+    return path.reverse(); // Reverse the path to start-to-goal order
+}
+function aStar(startNode, endNode) {
+    let openSet = [
+        startNode
+    ]; // Nodes to explore
+    let closedSet = []; // Nodes already explored
+    nodes.forEach((node)=>{
+        node.g = Infinity; // Cost to reach this node (default: Infinity)
+        node.h = 0; // Heuristic cost estimate (default: 0)
+        node.f = node.g + node.h; // Total estimated cost
+        node.parent = null; // Track the path
+    });
+    startNode.g = 0; // Cost to reach the start node is 0
+    startNode.h = heuristic(startNode.position, endNode.position); // Heuristic to goal
+    startNode.f = startNode.g + startNode.h; // Total estimated cost
+    while(openSet.length > 0){
+        // Find the node in openSet with the lowest f value
+        let currentNode = openSet.reduce((a, b)=>a.f < b.f ? a : b);
+        // If we reached the goal node, reconstruct the path
+        if (currentNode === endNode) return reconstructPath(currentNode);
+        // Remove currentNode from openSet and add it to closedSet
+        openSet = openSet.filter((node)=>node !== currentNode);
+        closedSet.push(currentNode);
+        // Explore all neighbors of the currentNode
+        [
+            "left",
+            "top",
+            "right",
+            "bottom"
+        ].forEach((dir)=>{
+            let neighbor = nodes[currentNode[dir].index];
+            if (!neighbor || neighbor.occupied || closedSet.includes(neighbor)) return;
+            // Calculate the tentative g score
+            let tentativeG = currentNode.g + 1; // Assuming uniform cost for each step
+            // If the neighbor is not in openSet, add it
+            if (!openSet.includes(neighbor)) openSet.push(neighbor);
+            else if (tentativeG >= neighbor.g) return; // If this path is not better, skip it
+            // Update the neighbor's g, h, f values and set its parent
+            neighbor.g = tentativeG;
+            neighbor.h = heuristic(neighbor.position, endNode.position);
+            neighbor.f = neighbor.g + neighbor.h;
+            neighbor.parent = currentNode; // Set the parent to track the path
+        });
+    }
+    // If we exhaust the openSet without finding the goal, return null (no path found)
+    return null;
+}
+function flashMsg(msg) {
+    msg.style.display = 'block';
+    setTimeout(()=>{
+        msg.style.display = 'none';
+    }, 2000);
+}
+function drawWire(stage, clickedNodes) {
+    const width = stage.width();
+    const height = stage.height();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE);
+    let node1Row = (clickedNodes[0].y() - GRIDSIZE) / GRIDSIZE;
+    let node1_index = (clickedNodes[0].x() - GRIDSIZE) / GRIDSIZE + node1Row * (rownumberofNodes + 1);
+    let node2Row = (clickedNodes[1].y() - GRIDSIZE) / GRIDSIZE;
+    let node2_index = (clickedNodes[1].x() - GRIDSIZE) / GRIDSIZE + node2Row * (rownumberofNodes + 1);
+    let wireNodes = aStar(nodes[node1_index], nodes[node2_index]);
+    console.log(wireNodes);
+    if (!wireNodes) return false;
+    let wire = new (0, _classes.Wire)();
+    wire.gridPoints = wireNodes;
+    for(let i = 0; i < wireNodes.length - 1; i++){
+        const line = new (0, _konvaDefault.default).Line({
+            points: [
+                wireNodes[i].position.x,
+                wireNodes[i].position.y,
+                wireNodes[i + 1].position.x,
+                wireNodes[i + 1].position.y
+            ],
+            stroke: 'black',
+            strokeWidth: 2,
+            listening: false
+        });
+        layer.add(line);
+    }
 }
 
-},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"9LEjq":[function(require,module,exports,__globalThis) {
-exports.interopDefault = function(a) {
-    return a && a.__esModule ? a : {
-        default: a
-    };
-};
-exports.defineInteropFlag = function(a) {
-    Object.defineProperty(a, '__esModule', {
-        value: true
-    });
-};
-exports.exportAll = function(source, dest) {
-    Object.keys(source).forEach(function(key) {
-        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
-        Object.defineProperty(dest, key, {
-            enumerable: true,
-            get: function() {
-                return source[key];
-            }
-        });
-    });
-    return dest;
-};
-exports.export = function(dest, destName, get) {
-    Object.defineProperty(dest, destName, {
-        enumerable: true,
-        get: get
-    });
-};
-
-},{}],"9HPQv":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","konva":"geBjd","./classes":"9HPQv"}],"9HPQv":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 //==============================================Resistance Component Class=============================================
@@ -12775,6 +12954,6 @@ class dcCurrentSource extends Component {
     }
 }
 
-},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","konva":"geBjd"}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
 
 //# sourceMappingURL=index.61542594.js.map
