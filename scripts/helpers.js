@@ -1,6 +1,15 @@
 import { Wire } from './classes';
 import Konva from 'konva'
 
+let width = window.innerWidth
+let height = window.innerHeight
+//let addingWire = false;
+
+export var stage = new Konva.Stage({
+    container: 'container',
+    width: width,
+    height: height
+})
 export let layer = new Konva.Layer();
 export const GRIDSIZE = 30;
 export let components = []; // component != null
@@ -8,7 +17,8 @@ export let nodeCircles = []; // A list of the drawn circles about each node
 export let wires = []; // A list of all the wire generated
 export let nodes = []; // All the nodes within the active program
 export let addingWire = false;
-
+let uniqueNodes = {};
+let nodeCounter = 1;
 export function setAddingWire(value) {
     addingWire = value;
 }
@@ -195,8 +205,50 @@ export function checkNearbybyCoords(coords) {
 export function snapToGrid(value) {
     return Math.round(value / GRIDSIZE) * GRIDSIZE;
 }
+//========================================Set Occupied Nodes Function==========================================
+export function setOccupied(component) {
+    if (component.rotation() === 0) {
+        nodes[component.node1.right.index].occupied = true;
+        nodes[nodes[component.node1.right.index].right.index].occupied = true;
+    }
+    if (component.rotation() === 90) {
+        nodes[component.node1.bottom.index].occupied = true;
+        nodes[nodes[component.node1.bottom.index].bottom.index].occupied = true;
+    }
+    if (component.rotation() === 180) {
+        nodes[component.node2.right.index].occupied = true;
+        nodes[nodes[component.node2.right.index].right.index].occupied = true;
+    }
+    if (component.rotation() === 270) {
+        nodes[component.node2.bottom.index].occupied = true;
+        nodes[nodes[component.node2.bottom.index].bottom.index].occupied = true;
+    }
+}
+export function unsetOccupied(component) {
+    if (component.rotation() === 0) {
+        nodes[component.node1.right.index].occupied = false;
+        nodes[nodes[component.node1.right.index].right.index].occupied = false;
+    }
+    if (component.rotation() === 90) {
+        nodes[component.node1.bottom.index].occupied = false;
+        nodes[nodes[component.node1.bottom.index].bottom.index].occupied = false;
+    }
+    if (component.rotation() === 180) {
+        nodes[component.node2.right.index].occupied = false;
+        nodes[nodes[component.node2.right.index].right.index].occupied = false;
+    }
+    if (component.rotation() === 270) {
+        nodes[component.node2.bottom.index].occupied = false;
+        nodes[nodes[component.node2.bottom.index].bottom.index].occupied = false;
+    }
+}
 //========================================Component Initializer Function==========================================
 export function initializeComponent(component, image) {
+    const width = stage.width();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
+    let compRow = (60 - GRIDSIZE) / GRIDSIZE
+    let node1_index = parseInt((75 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
+    let node2_index = parseInt((165 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
     component.x(75);
     component.y(60);
     component.image(image);
@@ -205,8 +257,13 @@ export function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2)
     component.offsetY(component.height() / 2)
-    component.node1 = [component.x() - component.width() / 2, component.y()]
-    component.node2 = [component.x() + component.width() / 2, component.y()]
+    //component.node1 = [component.x() - component.width() / 2, component.y()]
+    //component.node2 = [component.x() + component.width() / 2, component.y()]
+    console.log(node1_index)
+    component.node1 = nodes[node1_index]
+    component.node2 = nodes[node2_index]
+    nodes[component.node1.right.index].occupied = true;
+    nodes[nodes[component.node1.right.index].right.index].occupied = true;
 }
 //========================================Component Text Initialzier Function==========================================
 export function initializeComptext(component) {
@@ -353,30 +410,59 @@ export function dragendHandler(component, newcoords, currcoords) {
         updateText(component, component.text);
         return;
     }
+    unsetOccupied(component)
     currcoords[0] = newcoords[0]
     currcoords[1] = newcoords[1]
     component.position({ x: currcoords[0], y: currcoords[1] });
     handleCompNodes(component)
+    setOccupied(component)
     updateText(component, component.text);
 }
 //========================================Component Nodes Handler Function==========================================
 export function handleCompNodes(component) {
     const rotation = component.rotation();
+    const width = stage.width();
+    const height = stage.height();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
     if (rotation === 0) {
-        component.node1 = [component.x() - component.width() / 2, component.y()]
-        component.node2 = [component.x() + component.width() / 2, component.y()]
+        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE
+        let node1_index = ((component.x() - component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
+        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE
+        let node2_index = ((component.x() + component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+        //component.node1 = [component.x() - component.width() / 2, component.y()]
+        //component.node2 = [component.x() + component.width() / 2, component.y()]
     }
     else if (rotation == 90) {
-        component.node1 = [component.x(), component.y() - component.height() / 2]
-        component.node2 = [component.x(), component.y() + component.height() / 2]
+        let node1Row = ((component.y() - component.height() / 2) - GRIDSIZE) / GRIDSIZE
+        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
+        let node2Row = ((component.y() + component.height() / 2) - GRIDSIZE) / GRIDSIZE
+        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+        // component.node1 = [component.x(), component.y() - component.height() / 2]
+        // component.node2 = [component.x(), component.y() + component.height() / 2]
     }
     else if (rotation == 180) {
-        component.node1 = [component.x() + component.width() / 2, component.y()]
-        component.node2 = [component.x() - component.width() / 2, component.y()]
+        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE
+        let node1_index = ((component.x() + component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
+        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE
+        let node2_index = ((component.x() - component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+        //component.node1 = [component.x() + component.width() / 2, component.y()]
+        //component.node2 = [component.x() - component.width() / 2, component.y()]
     }
     else if (rotation == 270) {
-        component.node1 = [component.x(), component.y() + component.height() / 2]
-        component.node2 = [component.x(), component.y() - component.height() / 2]
+        let node1Row = ((component.y() + component.height() / 2) - GRIDSIZE) / GRIDSIZE
+        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
+        let node2Row = ((component.y() - component.height() / 2) - GRIDSIZE) / GRIDSIZE
+        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+        // component.node1 = [component.x(), component.y() + component.height() / 2]
+        // component.node2 = [component.x(), component.y() - component.height() / 2]
     }
 }
 //========================================Component Text Update Function==========================================
@@ -421,28 +507,41 @@ function removeComponent(component) {
 }
 //========================================Draw Nodes Function==========================================
 export function drawNodes() {
-    //TODO: Draw wired nodes as nodes too
     components.forEach((currComponent) => {
         if (currComponent != null) {
-            if (!currComponent.node1Connected) {
-                const node = new Konva.Circle({
-                    x: currComponent.node1[0],
-                    y: currComponent.node1[1],
-                    radius: 4,
-                    fill: '#772F1A',
-                });
-                nodeCircles.push(node);
-            }
-            if (!currComponent.node2Connected) {
-                const node = new Konva.Circle({
-                    x: currComponent.node2[0],
-                    y: currComponent.node2[1],
-                    radius: 4,
-                    fill: '#772F1A',
-                });
-                nodeCircles.push(node);
-            }
+            const node1 = new Konva.Circle({
+                x: currComponent.node1.position.x,
+                y: currComponent.node1.position.y,
+                radius: 4,
+                fill: '#772F1A',
+            });
+            nodeCircles.push(node1);
+            const node2 = new Konva.Circle({
+                x: currComponent.node2.position.x,
+                y: currComponent.node2.position.y,
+                radius: 4,
+                fill: '#772F1A',
+            });
+            nodeCircles.push(node2);
         }
+        wires.forEach((wire) => {
+            if (wire != null) {
+                wire.gridPoints.forEach((point) => {
+                    let newNode = true;
+                    nodeCircles.forEach((node) => {
+                        if (node.x() == point.position.x && node.y() == point.position.y) newNode = false;
+                    })
+                    if (!newNode) return;
+                    const node = new Konva.Circle({
+                        x: point.position.x,
+                        y: point.position.y,
+                        radius: 4,
+                        fill: '#772F1A'
+                    })
+                    nodeCircles.push(node);
+                });
+            }
+        })
     })
     nodeCircles.forEach((node) => {
         node.on('mouseover', () => {
@@ -467,20 +566,20 @@ export function removeNodes() {
     layer.batchDraw();
 }
 //========================================Check Connection Nodes Function==========================================
-export function checkConnectionNodes(clickedNodes) {
-    let sameComp = false;
-    components.forEach((component) => {
-        if (component != null) {
-            for (let i = 0; i < 2; i++) {
-                if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y()
-                    && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) {
-                    sameComp = true;
-                }
-            }
-        }
-    })
-    return sameComp;
-}
+// export function checkConnectionNodes(clickedNodes) {
+//     let sameComp = false;
+//     components.forEach((component) => {
+//         if (component != null) {
+//             for (let i = 0; i < 2; i++) {
+//                 if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y()
+//                     && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) {
+//                     sameComp = true;
+//                 }
+//             }
+//         }
+//     })
+//     return sameComp;
+// }
 //========================================A* algorithm==========================================
 export function heuristic(startNode, endNode) {
     return Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
@@ -524,7 +623,9 @@ export function aStar(startNode, endNode) {
 
         // Explore all neighbors of the currentNode
         ["left", "top", "right", "bottom"].forEach(dir => {
+            if (!currentNode[dir]) return;
             let neighbor = nodes[currentNode[dir].index];
+            console.log(neighbor.occupied)
             if (!neighbor || neighbor.occupied || closedSet.includes(neighbor)) {
                 return;
             }
@@ -579,6 +680,106 @@ export function drawWire(stage, clickedNodes) {
             listening: false,
         });
         layer.add(line);
+        wire.drawnLines.push(line);
     }
+    wires.push(wire);
+}
+//========================================Generate Net list Function==========================================
+function haveCommonNodes(node1, node2) {
+    const keys1 = Object.keys(node1);
+    const keys2 = Object.keys(node2);
+    const set1 = new Set(keys1);
+
+    for (const key of keys2) {
+        if (set1.has(key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function updateNodes() {
+    uniqueNodes = {}
+    tempNodes = {}
+    nodeCounter = 1;
+    let tempCounter = 1;
+    wires.forEach((wire) => {
+        if (wire == null) return;
+        for (let i = 1; i < nodeCounter; i++) {
+            for (let j = 0; j < wire.gridPoints.length; j++) {
+                if (uniqueNodes[`N${i}`][`'${wire.gridPoints[j].index}'`]) {
+                    for (let k = 0; k < wire.gridPoints.length; k++) {
+                        uniqueNodes[`N${i}`][`'${wire.gridPoints[k].index}'`] = true;
+                    }
+                    return;
+                }
+            }
+        }
+        if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {};
+        for (let i = 0; i < wire.gridPoints.length; i++) {
+            uniqueNodes[`N${nodeCounter}`][`'${wire.gridPoints[i].index}'`] = true;
+        }
+        nodeCounter++;
+    })
+    for (let i = 1; i < nodeCounter; i++) {
+        let foundCommon = false;
+        for (let j = i + 1; j < nodeCounter; j++) {
+            if (haveCommonNodes(uniqueNodes[`N${i}`], uniqueNodes[`N${j}`])) {
+                foundCommon = true;
+                uniqueNodes[`N${i}`] = { ...uniqueNodes[`N${i}`], ...uniqueNodes[`N${j}`] }
+                uniqueNodes[`N${j}`] = {};
+            }
+        }
+        if (foundCommon) {
+            tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
+        }
+        if (!foundCommon && Object.keys(uniqueNodes[`N${i}`]).length !== 0) {
+            tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
+        }
+    }
+    nodeCounter = tempCounter;
+    uniqueNodes = tempNodes;
+    components.forEach((component) => {
+        if (component == null) return
+        let node1Defined = false;
+        let node2Defined = false;
+        for (let i = 1; i < nodeCounter; i++) {
+            if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) {
+                node1Defined = true;
+            }
+            if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) {
+                node2Defined = true;
+            }
+        }
+        if (!node1Defined) {
+            uniqueNodes[`N${nodeCounter}`] = {};
+            uniqueNodes[`N${nodeCounter}`][`'${component.node1.index}'`] = true;
+            nodeCounter++;
+        }
+        if (!node2Defined) {
+            uniqueNodes[`N${nodeCounter}`] = {};
+            uniqueNodes[`N${nodeCounter}`][`'${component.node2.index}'`] = true;
+            nodeCounter++;
+        }
+    })
+}
+export function genNetList() {
+    updateNodes();
+    components.forEach((component) => {
+        let out = '';
+        out += component.name;
+
+        for (let i = 1; i < nodeCounter; i++) {
+            if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) {
+                out += ` N${i} `; break;
+            }
+        }
+        for (let i = 1; i < nodeCounter; i++) {
+            if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) { out += `N${i} `; break; }
+        }
+        out += component.value;
+        out += component.unit
+        console.log(out)
+    })
 }
 //========================================Helper Functions End==========================================

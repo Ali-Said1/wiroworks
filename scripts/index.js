@@ -1,17 +1,9 @@
 import Konva from 'konva'
-import { layer, GRIDSIZE, addCompSVG, drawGrid, initializeComponent, componentHandler, initializeComptext, components, drawNodes, checkNearbybyCoords, nodeCircles, removeNodes, checkConnectionNodes, aStar, nodes, flashMsg, addingWire, setAddingWire, drawWire } from './helpers';
+import { stage, layer, GRIDSIZE, addCompSVG, drawGrid, initializeComponent, componentHandler, initializeComptext, components, drawNodes, checkNearbybyCoords, nodeCircles, removeNodes, checkConnectionNodes, aStar, nodes, flashMsg, addingWire, setAddingWire, drawWire, genNetList } from './helpers';
 
-import { Resistance, dcBattery, Switch, Wire, dcCurrentSource } from './classes';
+import { Resistance, dcBattery, Switch, Wire, dcCurrentSource, Ground } from './classes';
 
-let width = window.innerWidth
-let height = window.innerHeight
-//let addingWire = false;
 
-var stage = new Konva.Stage({
-    container: 'container',
-    width: width,
-    height: height
-})
 
 stage.add(layer);
 
@@ -95,15 +87,11 @@ const dccs = document.getElementById('dcCurrentSource');
 dccs.addEventListener('click', () => {
     if (addingWire) return;
     if (checkNearbybyCoords([75, 60])) {
-        if (checkNearbybyCoords([75, 60])) {
-            const atOrigin = document.getElementById('atOriginalert');
-            atOrigin.style.display = 'block'
-            setTimeout(() => {
-                atOrigin.style.display = 'none';
-            }, 2000)
-            return;
-        }
-        return;
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block'
+        setTimeout(() => {
+            atOrigin.style.display = 'none';
+        }, 2000)
     }
     var imageObj = new Image();
     const dccsSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
@@ -159,7 +147,6 @@ document.body.addEventListener('click', (event) => {
             if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) nodeClicked = true;
         })
         if (!nodeClicked) {
-            console.log('stopped prop')
             event.preventDefault();
             event.stopPropagation();
         }
@@ -170,28 +157,93 @@ document.body.addEventListener('click', (event) => {
                     if (clickedNodes.find((cnode) => cnode === node)) {
                         flashMsg(differentnode);
                     }
-                    else if (clickedNodes.length === 1 && checkConnectionNodes([...clickedNodes, node])) {
-                        flashMsg(differentnode);
-                        node.fill('#772F1A')
-                    }
+                    // else if (clickedNodes.length === 1 && checkConnectionNodes([...clickedNodes, node])) {
+                    //     flashMsg(differentnode);
+                    //     node.fill('#772F1A')
+                    // }
                     else {
                         clickedNodes.push(node);
                     }
                 }
+                console.log(clickedNodes.length)
+                console.log(clickedNodes)
                 if (clickedNodes.length === 2) {
-                    setAddingWire(false);
-                    removeNodes();
-                    drawWire(stage, clickedNodes);
-                    clickedNodes = [];
+                    if (clickedNodes[0].x() === clickedNodes[1].x() && clickedNodes[0].y() === clickedNodes[1].y()) {
+                        clickedNodes.pop();
+                    } else {
+                        setAddingWire(false);
+                        removeNodes();
+                        drawWire(stage, clickedNodes);
+                        clickedNodes = [];
+                    }
+                }
+                else if (clickedNodes.length > 2) {
+                    let x = clickedNodes.length;
+                    if (clickedNodes[0] == clickedNodes[1]) {
+                        for (let i = 1; i < x; i++) clickedNodes.pop();
+                    } else {
+                        for (let i = 2; i < x; i++) clickedNodes.pop();
+                        setAddingWire(false);
+                        removeNodes();
+                        drawWire(stage, clickedNodes);
+                        clickedNodes = [];
+                    }
                 }
             }
         })
     }
 })
+
+const run = document.getElementById('run')
+run.addEventListener('click', () => {
+    genNetList();
+})
 // =============================================================================================================
+// Ground Logic
+const ground = document.getElementById('ground');
+ground.addEventListener('click', () => {
+    if (addingWire) return;
+    if (checkNearbybyCoords([75, 60])) {
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block'
+        setTimeout(() => {
+            atOrigin.style.display = 'none';
+        }, 2000)
+    }
+
+    var imageObj = new Image();
+    const groundSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+  <!-- Vertical line coming from above -->
+  <line x1="15" y1="0" x2="15" y2="15" stroke="black" stroke-width="1"/>
+  <!-- Top horizontal line -->
+  <line x1="5" y1="15" x2="25" y2="15" stroke="black" stroke-width="2"/>
+  <!-- Middle horizontal line -->
+  <line x1="10" y1="22" x2="20" y2="22" stroke="black" stroke-width="2"/>
+  <!-- Bottom horizontal line -->
+  <line x1="12" y1="30" x2="18" y2="30" stroke="black" stroke-width="2"/>
+</svg>
+`
+    addCompSVG(imageObj, groundSvg);
+    imageObj.onload = function () {
+        var groundElement = new Ground({});
+        // Init Ground inits one node only
+        // Snap to grid for ground
+        // check nearby objects for ground
+        // no properties for ground, so add ground handler function
+        // drag end handler logic
+        // component node handler logic
+        // occupied node handler logic
+        // define the ground nodes
+    }
+})
+// =============================================================================================================
+//TODO: Add has wire property to the nodes and check for node.has wire in dragend handler
+//TODO: Add Ground, and re-define the ground nodes
+//TODO: Add wire deletion, double click on wire and confirm with alert..
+//TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
+//TODO: Remove connected wires on removing element
 //TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
 //TODO: add isConnected to the components when wires are added is connected is true for the linked components
-//TODO: Implement current sources, then start the logic (tmr)
 //TODO: calculations create a table for the output with all branch currents and node values
 //TODO: modified nodal analysis
 //TODO: Dependent sources

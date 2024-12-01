@@ -11,7 +11,7 @@ class Component extends Konva.Image {
         this.node2 = [this.x() + this.width(), this.y() + this.height() / 2];
         this.horizontal = true;
         this.type = ''
-        this.value = 0;
+        this.value = 1;
         this.polarity = 'NULL'
         this.node1Connected = false;
         this.node2Connected = false;
@@ -47,6 +47,21 @@ class Component extends Konva.Image {
     }
     getValue() {
         return this.value;
+    }
+}
+//==============================================Ground Component Class=============================================
+export class Ground extends Component {
+    static count = 1;
+    constructor(element) {
+        super(element);
+        this.type = 'Ground'
+        this.name = `G${Ground.count}`
+    }
+    getSymbol() {
+        return 'GND';
+    }
+    decreaseCount() {
+        Ground.count--;
     }
 }
 //==============================================Resistance Component Class=============================================
