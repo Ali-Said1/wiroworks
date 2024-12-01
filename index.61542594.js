@@ -601,16 +601,8 @@ var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
 var _helpers = require("./helpers");
 var _classes = require("./classes");
-let width = window.innerWidth;
-let height = window.innerHeight;
-//let addingWire = false;
-var stage = new (0, _konvaDefault.default).Stage({
-    container: 'container',
-    width: width,
-    height: height
-});
-stage.add((0, _helpers.layer));
-(0, _helpers.drawGrid)(stage, (0, _helpers.layer), (0, _helpers.GRIDSIZE));
+(0, _helpers.stage).add((0, _helpers.layer));
+(0, _helpers.drawGrid)((0, _helpers.stage), (0, _helpers.layer), (0, _helpers.GRIDSIZE));
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', ()=>{
@@ -695,18 +687,11 @@ dccs.addEventListener('click', ()=>{
         75,
         60
     ])) {
-        if ((0, _helpers.checkNearbybyCoords)([
-            75,
-            60
-        ])) {
-            const atOrigin = document.getElementById('atOriginalert');
-            atOrigin.style.display = 'block';
-            setTimeout(()=>{
-                atOrigin.style.display = 'none';
-            }, 2000);
-            return;
-        }
-        return;
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block';
+        setTimeout(()=>{
+            atOrigin.style.display = 'none';
+        }, 2000);
     }
     var imageObj = new Image();
     const dccsSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90">
@@ -760,7 +745,6 @@ document.body.addEventListener('click', (event)=>{
             if (Math.abs(event.x - node.x()) < 5 && Math.abs(event.y - node.y()) < 5) nodeClicked = true;
         });
         if (!nodeClicked) {
-            console.log('stopped prop');
             event.preventDefault();
             event.stopPropagation();
         }
@@ -769,34 +753,91 @@ document.body.addEventListener('click', (event)=>{
             if (Math.abs(event.x - node.x()) < 4 && Math.abs(event.y - node.y()) < 4) {
                 if (clickedNodes.length < 2) {
                     if (clickedNodes.find((cnode)=>cnode === node)) (0, _helpers.flashMsg)(differentnode);
-                    else if (clickedNodes.length === 1 && (0, _helpers.checkConnectionNodes)([
-                        ...clickedNodes,
-                        node
-                    ])) {
-                        (0, _helpers.flashMsg)(differentnode);
-                        node.fill('#772F1A');
-                    } else clickedNodes.push(node);
+                    else clickedNodes.push(node);
                 }
+                console.log(clickedNodes.length);
+                console.log(clickedNodes);
                 if (clickedNodes.length === 2) {
-                    (0, _helpers.setAddingWire)(false);
-                    (0, _helpers.removeNodes)();
-                    (0, _helpers.drawWire)(stage, clickedNodes);
-                    clickedNodes = [];
+                    if (clickedNodes[0].x() === clickedNodes[1].x() && clickedNodes[0].y() === clickedNodes[1].y()) clickedNodes.pop();
+                    else {
+                        (0, _helpers.setAddingWire)(false);
+                        (0, _helpers.removeNodes)();
+                        (0, _helpers.drawWire)((0, _helpers.stage), clickedNodes);
+                        clickedNodes = [];
+                    }
+                } else if (clickedNodes.length > 2) {
+                    let x = clickedNodes.length;
+                    if (clickedNodes[0] == clickedNodes[1]) for(let i = 1; i < x; i++)clickedNodes.pop();
+                    else {
+                        for(let i = 2; i < x; i++)clickedNodes.pop();
+                        (0, _helpers.setAddingWire)(false);
+                        (0, _helpers.removeNodes)();
+                        (0, _helpers.drawWire)((0, _helpers.stage), clickedNodes);
+                        clickedNodes = [];
+                    }
                 }
             }
         });
     }
+});
+const run = document.getElementById('run');
+run.addEventListener('click', ()=>{
+    (0, _helpers.genNetList)();
+});
+// =============================================================================================================
+// Ground Logic
+const ground = document.getElementById('ground');
+ground.addEventListener('click', ()=>{
+    if (0, _helpers.addingWire) return;
+    if ((0, _helpers.checkNearbybyCoords)([
+        75,
+        60
+    ])) {
+        const atOrigin = document.getElementById('atOriginalert');
+        atOrigin.style.display = 'block';
+        setTimeout(()=>{
+            atOrigin.style.display = 'none';
+        }, 2000);
+    }
+    var imageObj = new Image();
+    const groundSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">
+  <!-- Vertical line coming from above -->
+  <line x1="15" y1="0" x2="15" y2="15" stroke="black" stroke-width="1"/>
+  <!-- Top horizontal line -->
+  <line x1="5" y1="15" x2="25" y2="15" stroke="black" stroke-width="2"/>
+  <!-- Middle horizontal line -->
+  <line x1="10" y1="22" x2="20" y2="22" stroke="black" stroke-width="2"/>
+  <!-- Bottom horizontal line -->
+  <line x1="12" y1="30" x2="18" y2="30" stroke="black" stroke-width="2"/>
+</svg>
+`;
+    (0, _helpers.addCompSVG)(imageObj, groundSvg);
+    imageObj.onload = function() {
+        var groundElement = new (0, _classes.Ground)({});
+    // Init Ground inits one node only
+    // Snap to grid for ground
+    // check nearby objects for ground
+    // no properties for ground, so add ground handler function
+    // drag end handler logic
+    // component node handler logic
+    // occupied node handler logic
+    // define the ground nodes
+    };
 }) // =============================================================================================================
+ //TODO: Add has wire property to the nodes and check for node.has wire in dragend handler
+ //TODO: Add Ground, and re-define the ground nodes
+ //TODO: Add wire deletion, double click on wire and confirm with alert..
+ //TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
+ //TODO: Remove connected wires on removing element
  //TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
  //TODO: add isConnected to the components when wires are added is connected is true for the linked components
- //TODO: Implement current sources, then start the logic (tmr)
  //TODO: calculations create a table for the output with all branch currents and node values
  //TODO: modified nodal analysis
  //TODO: Dependent sources
  //TODO: AC
 ;
 
-},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","./helpers":"zhEXG","./classes":"9HPQv"}],"geBjd":[function(require,module,exports,__globalThis) {
+},{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
 "use strict";
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -12148,39 +12189,10 @@ const Threshold = function(imageData) {
 exports.Threshold = Threshold;
 Factory_1.Factory.addGetterSetter(Node_1.Node, 'threshold', 0.5, (0, Validators_1.getNumberValidator)(), Factory_1.Factory.afterSetFilter);
 
-},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"9LEjq":[function(require,module,exports,__globalThis) {
-exports.interopDefault = function(a) {
-    return a && a.__esModule ? a : {
-        default: a
-    };
-};
-exports.defineInteropFlag = function(a) {
-    Object.defineProperty(a, '__esModule', {
-        value: true
-    });
-};
-exports.exportAll = function(source, dest) {
-    Object.keys(source).forEach(function(key) {
-        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
-        Object.defineProperty(dest, key, {
-            enumerable: true,
-            get: function() {
-                return source[key];
-            }
-        });
-    });
-    return dest;
-};
-exports.export = function(dest, destName, get) {
-    Object.defineProperty(dest, destName, {
-        enumerable: true,
-        get: get
-    });
-};
-
-},{}],"zhEXG":[function(require,module,exports,__globalThis) {
+},{"fc783daf831fee28":"cBseC","6be27e1473a326a8":"bfHol","3820ac8db36d98a1":"gkzNd"}],"zhEXG":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "stage", ()=>stage);
 parcelHelpers.export(exports, "layer", ()=>layer);
 parcelHelpers.export(exports, "GRIDSIZE", ()=>GRIDSIZE);
 parcelHelpers.export(exports, "components", ()=>components);
@@ -12201,6 +12213,9 @@ parcelHelpers.export(exports, "checkNearby", ()=>checkNearby);
 parcelHelpers.export(exports, "checkNearbybyCoords", ()=>checkNearbybyCoords);
 //========================================Snap Components to Grid Function==========================================
 parcelHelpers.export(exports, "snapToGrid", ()=>snapToGrid);
+//========================================Set Occupied Nodes Function==========================================
+parcelHelpers.export(exports, "setOccupied", ()=>setOccupied);
+parcelHelpers.export(exports, "unsetOccupied", ()=>unsetOccupied);
 //========================================Component Initializer Function==========================================
 parcelHelpers.export(exports, "initializeComponent", ()=>initializeComponent);
 //========================================Component Text Initialzier Function==========================================
@@ -12218,7 +12233,20 @@ parcelHelpers.export(exports, "drawNodes", ()=>drawNodes);
 //========================================Remove Nodes Function==========================================
 parcelHelpers.export(exports, "removeNodes", ()=>removeNodes);
 //========================================Check Connection Nodes Function==========================================
-parcelHelpers.export(exports, "checkConnectionNodes", ()=>checkConnectionNodes);
+// export function checkConnectionNodes(clickedNodes) {
+//     let sameComp = false;
+//     components.forEach((component) => {
+//         if (component != null) {
+//             for (let i = 0; i < 2; i++) {
+//                 if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y()
+//                     && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) {
+//                     sameComp = true;
+//                 }
+//             }
+//         }
+//     })
+//     return sameComp;
+// }
 //========================================A* algorithm==========================================
 parcelHelpers.export(exports, "heuristic", ()=>heuristic);
 parcelHelpers.export(exports, "reconstructPath", ()=>reconstructPath);
@@ -12226,11 +12254,19 @@ parcelHelpers.export(exports, "aStar", ()=>aStar);
 //========================================Flash Message Function==========================================
 parcelHelpers.export(exports, "flashMsg", ()=>flashMsg);
 //========================================Draw Wire Function==========================================
-parcelHelpers.export(exports, "drawWire", ()=>drawWire) //========================================Helper Functions End==========================================
+parcelHelpers.export(exports, "drawWire", ()=>drawWire);
+parcelHelpers.export(exports, "genNetList", ()=>genNetList) //========================================Helper Functions End==========================================
 ;
 var _classes = require("./classes");
 var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
+let width = window.innerWidth;
+let height = window.innerHeight;
+var stage = new (0, _konvaDefault.default).Stage({
+    container: 'container',
+    width: width,
+    height: height
+});
 let layer = new (0, _konvaDefault.default).Layer();
 const GRIDSIZE = 30;
 let components = []; // component != null
@@ -12238,6 +12274,8 @@ let nodeCircles = []; // A list of the drawn circles about each node
 let wires = []; // A list of all the wire generated
 let nodes = []; // All the nodes within the active program
 let addingWire = false;
+let uniqueNodes = {};
+let nodeCounter = 1;
 function setAddingWire(value) {
     addingWire = value;
 }
@@ -12405,7 +12443,48 @@ function checkNearbybyCoords(coords) {
 function snapToGrid(value) {
     return Math.round(value / GRIDSIZE) * GRIDSIZE;
 }
+function setOccupied(component) {
+    if (component.rotation() === 0) {
+        nodes[component.node1.right.index].occupied = true;
+        nodes[nodes[component.node1.right.index].right.index].occupied = true;
+    }
+    if (component.rotation() === 90) {
+        nodes[component.node1.bottom.index].occupied = true;
+        nodes[nodes[component.node1.bottom.index].bottom.index].occupied = true;
+    }
+    if (component.rotation() === 180) {
+        nodes[component.node2.right.index].occupied = true;
+        nodes[nodes[component.node2.right.index].right.index].occupied = true;
+    }
+    if (component.rotation() === 270) {
+        nodes[component.node2.bottom.index].occupied = true;
+        nodes[nodes[component.node2.bottom.index].bottom.index].occupied = true;
+    }
+}
+function unsetOccupied(component) {
+    if (component.rotation() === 0) {
+        nodes[component.node1.right.index].occupied = false;
+        nodes[nodes[component.node1.right.index].right.index].occupied = false;
+    }
+    if (component.rotation() === 90) {
+        nodes[component.node1.bottom.index].occupied = false;
+        nodes[nodes[component.node1.bottom.index].bottom.index].occupied = false;
+    }
+    if (component.rotation() === 180) {
+        nodes[component.node2.right.index].occupied = false;
+        nodes[nodes[component.node2.right.index].right.index].occupied = false;
+    }
+    if (component.rotation() === 270) {
+        nodes[component.node2.bottom.index].occupied = false;
+        nodes[nodes[component.node2.bottom.index].bottom.index].occupied = false;
+    }
+}
 function initializeComponent(component, image) {
+    const width = stage.width();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE);
+    let compRow = (60 - GRIDSIZE) / GRIDSIZE;
+    let node1_index = parseInt((75 - GRIDSIZE) / GRIDSIZE + compRow * rownumberofNodes);
+    let node2_index = parseInt((165 - GRIDSIZE) / GRIDSIZE + compRow * rownumberofNodes);
     component.x(75);
     component.y(60);
     component.image(image);
@@ -12414,14 +12493,13 @@ function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2);
     component.offsetY(component.height() / 2);
-    component.node1 = [
-        component.x() - component.width() / 2,
-        component.y()
-    ];
-    component.node2 = [
-        component.x() + component.width() / 2,
-        component.y()
-    ];
+    //component.node1 = [component.x() - component.width() / 2, component.y()]
+    //component.node2 = [component.x() + component.width() / 2, component.y()]
+    console.log(node1_index);
+    component.node1 = nodes[node1_index];
+    component.node2 = nodes[node2_index];
+    nodes[component.node1.right.index].occupied = true;
+    nodes[nodes[component.node1.right.index].right.index].occupied = true;
 }
 function initializeComptext(component) {
     const text = new (0, _konvaDefault.default).Text({
@@ -12571,6 +12649,7 @@ function dragendHandler(component, newcoords, currcoords) {
         updateText(component, component.text);
         return;
     }
+    unsetOccupied(component);
     currcoords[0] = newcoords[0];
     currcoords[1] = newcoords[1];
     component.position({
@@ -12578,46 +12657,50 @@ function dragendHandler(component, newcoords, currcoords) {
         y: currcoords[1]
     });
     handleCompNodes(component);
+    setOccupied(component);
     updateText(component, component.text);
 }
 function handleCompNodes(component) {
     const rotation = component.rotation();
+    const width = stage.width();
+    const height = stage.height();
+    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE);
     if (rotation === 0) {
-        component.node1 = [
-            component.x() - component.width() / 2,
-            component.y()
-        ];
-        component.node2 = [
-            component.x() + component.width() / 2,
-            component.y()
-        ];
+        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE;
+        let node1_index = (component.x() - component.width() / 2 - GRIDSIZE) / GRIDSIZE + node1Row * (rownumberofNodes + 1);
+        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE;
+        let node2_index = (component.x() + component.width() / 2 - GRIDSIZE) / GRIDSIZE + node2Row * (rownumberofNodes + 1);
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+    //component.node1 = [component.x() - component.width() / 2, component.y()]
+    //component.node2 = [component.x() + component.width() / 2, component.y()]
     } else if (rotation == 90) {
-        component.node1 = [
-            component.x(),
-            component.y() - component.height() / 2
-        ];
-        component.node2 = [
-            component.x(),
-            component.y() + component.height() / 2
-        ];
+        let node1Row = (component.y() - component.height() / 2 - GRIDSIZE) / GRIDSIZE;
+        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + node1Row * (rownumberofNodes + 1);
+        let node2Row = (component.y() + component.height() / 2 - GRIDSIZE) / GRIDSIZE;
+        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + node2Row * (rownumberofNodes + 1);
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+    // component.node1 = [component.x(), component.y() - component.height() / 2]
+    // component.node2 = [component.x(), component.y() + component.height() / 2]
     } else if (rotation == 180) {
-        component.node1 = [
-            component.x() + component.width() / 2,
-            component.y()
-        ];
-        component.node2 = [
-            component.x() - component.width() / 2,
-            component.y()
-        ];
+        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE;
+        let node1_index = (component.x() + component.width() / 2 - GRIDSIZE) / GRIDSIZE + node1Row * (rownumberofNodes + 1);
+        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE;
+        let node2_index = (component.x() - component.width() / 2 - GRIDSIZE) / GRIDSIZE + node2Row * (rownumberofNodes + 1);
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+    //component.node1 = [component.x() + component.width() / 2, component.y()]
+    //component.node2 = [component.x() - component.width() / 2, component.y()]
     } else if (rotation == 270) {
-        component.node1 = [
-            component.x(),
-            component.y() + component.height() / 2
-        ];
-        component.node2 = [
-            component.x(),
-            component.y() - component.height() / 2
-        ];
+        let node1Row = (component.y() + component.height() / 2 - GRIDSIZE) / GRIDSIZE;
+        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + node1Row * (rownumberofNodes + 1);
+        let node2Row = (component.y() - component.height() / 2 - GRIDSIZE) / GRIDSIZE;
+        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + node2Row * (rownumberofNodes + 1);
+        component.node1 = nodes[node1_index];
+        component.node2 = nodes[node2_index];
+    // component.node1 = [component.x(), component.y() + component.height() / 2]
+    // component.node2 = [component.x(), component.y() - component.height() / 2]
     }
 }
 function updateText(component) {
@@ -12668,28 +12751,39 @@ function removeComponent(component) {
     component.remove();
 }
 function drawNodes() {
-    //TODO: Draw wired nodes as nodes too
     components.forEach((currComponent)=>{
         if (currComponent != null) {
-            if (!currComponent.node1Connected) {
-                const node = new (0, _konvaDefault.default).Circle({
-                    x: currComponent.node1[0],
-                    y: currComponent.node1[1],
-                    radius: 4,
-                    fill: '#772F1A'
-                });
-                nodeCircles.push(node);
-            }
-            if (!currComponent.node2Connected) {
-                const node = new (0, _konvaDefault.default).Circle({
-                    x: currComponent.node2[0],
-                    y: currComponent.node2[1],
-                    radius: 4,
-                    fill: '#772F1A'
-                });
-                nodeCircles.push(node);
-            }
+            const node1 = new (0, _konvaDefault.default).Circle({
+                x: currComponent.node1.position.x,
+                y: currComponent.node1.position.y,
+                radius: 4,
+                fill: '#772F1A'
+            });
+            nodeCircles.push(node1);
+            const node2 = new (0, _konvaDefault.default).Circle({
+                x: currComponent.node2.position.x,
+                y: currComponent.node2.position.y,
+                radius: 4,
+                fill: '#772F1A'
+            });
+            nodeCircles.push(node2);
         }
+        wires.forEach((wire)=>{
+            if (wire != null) wire.gridPoints.forEach((point)=>{
+                let newNode = true;
+                nodeCircles.forEach((node)=>{
+                    if (node.x() == point.position.x && node.y() == point.position.y) newNode = false;
+                });
+                if (!newNode) return;
+                const node = new (0, _konvaDefault.default).Circle({
+                    x: point.position.x,
+                    y: point.position.y,
+                    radius: 4,
+                    fill: '#772F1A'
+                });
+                nodeCircles.push(node);
+            });
+        });
     });
     nodeCircles.forEach((node)=>{
         node.on('mouseover', ()=>{
@@ -12711,15 +12805,6 @@ function removeNodes() {
     });
     nodeCircles = [];
     layer.batchDraw();
-}
-function checkConnectionNodes(clickedNodes) {
-    let sameComp = false;
-    components.forEach((component)=>{
-        if (component != null) {
-            for(let i = 0; i < 2; i++)if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y() && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) sameComp = true;
-        }
-    });
-    return sameComp;
 }
 function heuristic(startNode, endNode) {
     return Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
@@ -12761,7 +12846,9 @@ function aStar(startNode, endNode) {
             "right",
             "bottom"
         ].forEach((dir)=>{
+            if (!currentNode[dir]) return;
             let neighbor = nodes[currentNode[dir].index];
+            console.log(neighbor.occupied);
             if (!neighbor || neighbor.occupied || closedSet.includes(neighbor)) return;
             // Calculate the tentative g score
             let tentativeG = currentNode.g + 1; // Assuming uniform cost for each step
@@ -12810,12 +12897,96 @@ function drawWire(stage, clickedNodes) {
             listening: false
         });
         layer.add(line);
+        wire.drawnLines.push(line);
     }
+    wires.push(wire);
+}
+//========================================Generate Net list Function==========================================
+function haveCommonNodes(node1, node2) {
+    const keys1 = Object.keys(node1);
+    const keys2 = Object.keys(node2);
+    const set1 = new Set(keys1);
+    for (const key of keys2){
+        if (set1.has(key)) return true;
+    }
+    return false;
+}
+function updateNodes() {
+    uniqueNodes = {};
+    tempNodes = {};
+    nodeCounter = 1;
+    let tempCounter = 1;
+    wires.forEach((wire)=>{
+        if (wire == null) return;
+        for(let i = 1; i < nodeCounter; i++){
+            for(let j = 0; j < wire.gridPoints.length; j++)if (uniqueNodes[`N${i}`][`'${wire.gridPoints[j].index}'`]) {
+                for(let k = 0; k < wire.gridPoints.length; k++)uniqueNodes[`N${i}`][`'${wire.gridPoints[k].index}'`] = true;
+                return;
+            }
+        }
+        if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {};
+        for(let i = 0; i < wire.gridPoints.length; i++)uniqueNodes[`N${nodeCounter}`][`'${wire.gridPoints[i].index}'`] = true;
+        nodeCounter++;
+    });
+    for(let i = 1; i < nodeCounter; i++){
+        let foundCommon = false;
+        for(let j = i + 1; j < nodeCounter; j++)if (haveCommonNodes(uniqueNodes[`N${i}`], uniqueNodes[`N${j}`])) {
+            foundCommon = true;
+            uniqueNodes[`N${i}`] = {
+                ...uniqueNodes[`N${i}`],
+                ...uniqueNodes[`N${j}`]
+            };
+            uniqueNodes[`N${j}`] = {};
+        }
+        if (foundCommon) tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
+        if (!foundCommon && Object.keys(uniqueNodes[`N${i}`]).length !== 0) tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
+    }
+    nodeCounter = tempCounter;
+    uniqueNodes = tempNodes;
+    components.forEach((component)=>{
+        if (component == null) return;
+        let node1Defined = false;
+        let node2Defined = false;
+        for(let i = 1; i < nodeCounter; i++){
+            if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) node1Defined = true;
+            if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) node2Defined = true;
+        }
+        if (!node1Defined) {
+            uniqueNodes[`N${nodeCounter}`] = {};
+            uniqueNodes[`N${nodeCounter}`][`'${component.node1.index}'`] = true;
+            nodeCounter++;
+        }
+        if (!node2Defined) {
+            uniqueNodes[`N${nodeCounter}`] = {};
+            uniqueNodes[`N${nodeCounter}`][`'${component.node2.index}'`] = true;
+            nodeCounter++;
+        }
+    });
+}
+function genNetList() {
+    updateNodes();
+    components.forEach((component)=>{
+        let out = '';
+        out += component.name;
+        for(let i = 1; i < nodeCounter; i++)if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) {
+            out += ` N${i} `;
+            break;
+        }
+        for(let i = 1; i < nodeCounter; i++)if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) {
+            out += `N${i} `;
+            break;
+        }
+        out += component.value;
+        out += component.unit;
+        console.log(out);
+    });
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","konva":"geBjd","./classes":"9HPQv"}],"9HPQv":[function(require,module,exports,__globalThis) {
+},{"./classes":"9HPQv","konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"9HPQv":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+//==============================================Ground Component Class=============================================
+parcelHelpers.export(exports, "Ground", ()=>Ground);
 //==============================================Resistance Component Class=============================================
 parcelHelpers.export(exports, "Resistance", ()=>Resistance);
 //===============================================DC Voltage Source Component Class=============================================
@@ -12844,7 +13015,7 @@ class Component extends (0, _konvaDefault.default).Image {
         ];
         this.horizontal = true;
         this.type = '';
-        this.value = 0;
+        this.value = 1;
         this.polarity = 'NULL';
         this.node1Connected = false;
         this.node2Connected = false;
@@ -12884,6 +13055,20 @@ class Component extends (0, _konvaDefault.default).Image {
     }
     getValue() {
         return this.value;
+    }
+}
+class Ground extends Component {
+    static count = 1;
+    constructor(element){
+        super(element);
+        this.type = 'Ground';
+        this.name = `G${Ground.count}`;
+    }
+    getSymbol() {
+        return 'GND';
+    }
+    decreaseCount() {
+        Ground.count--;
     }
 }
 class Resistance extends Component {
@@ -12954,6 +13139,36 @@ class dcCurrentSource extends Component {
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","konva":"geBjd"}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
+},{"konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"9LEjq":[function(require,module,exports,__globalThis) {
+exports.interopDefault = function(a) {
+    return a && a.__esModule ? a : {
+        default: a
+    };
+};
+exports.defineInteropFlag = function(a) {
+    Object.defineProperty(a, '__esModule', {
+        value: true
+    });
+};
+exports.exportAll = function(source, dest) {
+    Object.keys(source).forEach(function(key) {
+        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
+        Object.defineProperty(dest, key, {
+            enumerable: true,
+            get: function() {
+                return source[key];
+            }
+        });
+    });
+    return dest;
+};
+exports.export = function(dest, destName, get) {
+    Object.defineProperty(dest, destName, {
+        enumerable: true,
+        get: get
+    });
+};
+
+},{}]},["crAok","ahc7M"], "ahc7M", "parcelRequire94c2")
 
 //# sourceMappingURL=index.61542594.js.map
