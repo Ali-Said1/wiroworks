@@ -1,6 +1,6 @@
 import Konva from "konva";
 
-let currentId = 0;
+let currentId = -1;
 
 //==============================================Base Component Class=============================================
 class Component extends Konva.Image {
@@ -55,7 +55,8 @@ export class Ground extends Component {
     constructor(element) {
         super(element);
         this.type = 'Ground'
-        this.name = `G${Ground.count}`
+        this.node = null;
+        this.name = `GND`
     }
     getSymbol() {
         return 'GND';
@@ -96,6 +97,22 @@ export class dcBattery extends Component {
         dcBattery.count--;
     }
 }
+//===============================================DC Current Source Component Class=============================================
+export class dcCurrentSource extends Component {
+    static count = 1;
+    constructor(element) {
+        super(element)
+        this.type = 'DC Current Source';
+        this.unit = 'A'
+        this.name = `Cs${dcCurrentSource.count++}`
+    }
+    getSymbol() {
+        return 'Cs'
+    }
+    decreaseCount() {
+        dcCurrentSource.count--;
+    }
+}
 //===============================================Switch Component Class=============================================
 export class Switch extends Component {
     static count = 1;
@@ -121,21 +138,5 @@ export class Wire {
         this.gridPoints = [];
         this.drawnLines = [];
         this.connectedComponents = [];
-    }
-}
-//===============================================DC Current Source Component Class=============================================
-export class dcCurrentSource extends Component {
-    static count = 1;
-    constructor(element) {
-        super(element)
-        this.type = 'DC Current Source';
-        this.unit = 'A'
-        this.name = `Cs${dcCurrentSource.count++}`
-    }
-    getSymbol() {
-        return 'Cs'
-    }
-    decreaseCount() {
-        dcCurrentSource.count--;
     }
 }

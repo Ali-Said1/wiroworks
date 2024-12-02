@@ -1,5 +1,6 @@
-import { Wire } from './classes';
+import { Ground, Wire } from './classes';
 import Konva from 'konva'
+const math = require('mathjs')
 
 let width = window.innerWidth
 let height = window.innerHeight
@@ -13,6 +14,7 @@ export var stage = new Konva.Stage({
 export let layer = new Konva.Layer();
 export const GRIDSIZE = 30;
 export let components = []; // component != null
+export let ground = null;
 export let nodeCircles = []; // A list of the drawn circles about each node
 export let wires = []; // A list of all the wire generated
 export let nodes = []; // All the nodes within the active program
@@ -96,10 +98,68 @@ export function drawGrid(stage, layer, gridSize) {
         }
     }
     console.log(nodes)
+    addGround();
     // Draw the layer
     layer.draw();
 }
 
+//========================================Add Ground Function==========================================
+export function addGround() {
+    var imageObj = new Image();
+    const groundSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="30" viewBox="0 0 60 30">
+  <!-- Vertical line coming from above -->
+  <line x1="30" y1="0" x2="30" y2="15" stroke="black" stroke-width="2"/>
+  <!-- Top horizontal line -->
+  <line x1="14" y1="15" x2="46" y2="15" stroke="black" stroke-width="2"/>
+  <!-- Middle horizontal line -->
+  <line x1="20" y1="20" x2="40" y2="20" stroke="black" stroke-width="2"/>
+  <!-- Bottom horizontal line -->
+  <line x1="24" y1="25" x2="36" y2="25" stroke="black" stroke-width="2"/>
+</svg>`
+    addCompSVG(imageObj, groundSvg);
+    imageObj.onload = function () {
+        const width = stage.width();
+        let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
+        let compRow = (60 - GRIDSIZE) / GRIDSIZE
+        var groundElement = new Ground({})
+        groundElement.x(snapToGrid(width - 60));
+        groundElement.y(60);
+        groundElement.image(imageObj);
+        groundElement.width(GRIDSIZE * 2);
+        groundElement.draggable(true);
+        groundElement.rotation(0);
+        groundElement.offsetX(groundElement.width() / 2)
+        let nodeIdx = parseInt((groundElement.x() + groundElement.offsetX() - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
+        groundElement.node = nodes[nodeIdx];
+        nodes[groundElement.node.bottom.index].occupied = true;
+        layer.add(groundElement)
+        ground = groundElement;
+        groundElement.on('mouseover', () => {
+            document.body.style.cursor = 'pointer';
+        })
+        groundElement.on('mouseout', () => {
+            document.body.style.cursor = 'default';
+        })
+        let currcoords = [groundElement.x(), groundElement.y()];
+        groundElement.on('dragend', () => {
+            let newcoords = [snapToGrid(groundElement.x()), snapToGrid(groundElement.y())];
+            if (checkNearby(groundElement, newcoords)) {
+                groundElement.position({ x: currcoords[0], y: currcoords[1] });
+                layer.batchDraw();
+            }
+            else {
+                nodes[groundElement.node.bottom.index].occupied = false;
+                currcoords[0] = newcoords[0]
+                currcoords[1] = newcoords[1]
+                groundElement.position({ x: currcoords[0], y: currcoords[1] });
+                let newNodeRow = (groundElement.y() - GRIDSIZE) / GRIDSIZE
+                let newNodeIdx = ((groundElement.x()) - GRIDSIZE) / GRIDSIZE + (newNodeRow * (rownumberofNodes + 1))
+                groundElement.node = nodes[newNodeIdx];
+                nodes[groundElement.node.bottom.index].occupied = true;
+            }
+        })
+    }
+}
 //========================================Show Component details Function==========================================
 export function showDetails(component) {
     const html = `
@@ -154,6 +214,23 @@ export function showDetails(component) {
 }
 //========================================Check Nearby Components Function==========================================
 export function checkNearby(component, newcoords) {
+    if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) {
+        return true;
+    }
+    if (component !== ground) {
+        let boundGndx = Math.abs(ground.x() - newcoords[0])
+        let boundGndy = Math.abs(ground.y() - newcoords[1])
+        if (component.horizontal) {
+            if (boundGndx <= 90 && boundGndy <= 30) {
+                return true;
+            }
+        }
+        else if (!component.horizontal) {
+            if (boundGndx <= 30 && boundGndy <= 90) {
+                return true;
+            }
+        }
+    }
     for (const curr of components) {
         if (curr == null || component.ID == curr.ID) {
             continue;
@@ -246,19 +323,17 @@ export function unsetOccupied(component) {
 export function initializeComponent(component, image) {
     const width = stage.width();
     let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
-    let compRow = (60 - GRIDSIZE) / GRIDSIZE
-    let node1_index = parseInt((75 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
-    let node2_index = parseInt((165 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
+    let compRow = (90 - GRIDSIZE) / GRIDSIZE;
+    let node1_index = parseInt((75 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)) + 1)
+    let node2_index = parseInt((165 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)) + 1)
     component.x(75);
-    component.y(60);
+    component.y(90);
     component.image(image);
     component.width(GRIDSIZE * 3);
     component.draggable(true);
     component.rotation(0);
     component.offsetX(component.width() / 2)
     component.offsetY(component.height() / 2)
-    //component.node1 = [component.x() - component.width() / 2, component.y()]
-    //component.node2 = [component.x() + component.width() / 2, component.y()]
     console.log(node1_index)
     component.node1 = nodes[node1_index]
     component.node2 = nodes[node2_index]
@@ -270,7 +345,7 @@ export function initializeComptext(component) {
     const text = new Konva.Text({
         x: component.x(), // Center the text above the resistance
         y: component.y() - 40, // Position it above the resistance
-        text: `${component.name} ${component.getValue()} ${component.prefix}${component.unit}`,
+        text: `${component.name} ${component.getValue()} ${component.unit}`,
         fontSize: 20,
         fontFamily: 'Calibri',
         fill: 'black',
@@ -363,6 +438,7 @@ export function componentHandler(component, text) {
                     } else {
                         if (!previousOrient)
                             component.position({ x: snapToGrid(component.x()) - 15, y: snapToGrid(component.y()) })
+                        currcoords = [component.x(), component.y()];
                     }
                 }
                 else {
@@ -379,10 +455,13 @@ export function componentHandler(component, text) {
                     else {
                         if (previousOrient)
                             component.position({ x: snapToGrid(component.x()), y: snapToGrid(component.y()) - 15 })
+                        currcoords = [component.x(), component.y()];
                     }
                 }
                 updateText(component, text)
+                unsetOccupied(component)
                 handleCompNodes(component)
+                setOccupied(component)
             }
             else {
                 const disconnect = document.getElementById('disconnect');
@@ -485,7 +564,7 @@ export function updateText(component) {
         component.text.rotation(270);
         component.text.position({ x: component.x() - 40, y: component.y() })
     }
-    component.text.text(`${component.name} ${component.getValue()} ${component.prefix}${component.unit}`);
+    component.text.text(`${component.name} ${component.getValue()} ${component.prefix === " " ? '' : component.prefix}${component.unit}`);
     component.text.hide();
     if (component.shownText)
         component.text.show();
@@ -507,6 +586,13 @@ function removeComponent(component) {
 }
 //========================================Draw Nodes Function==========================================
 export function drawNodes() {
+    const groundNode = new Konva.Circle({
+        x: ground.node.position.x,
+        y: ground.node.position.y,
+        radius: 4,
+        fill: "#772F1A"
+    })
+    nodeCircles.push(groundNode);
     components.forEach((currComponent) => {
         if (currComponent != null) {
             const node1 = new Konva.Circle({
@@ -625,7 +711,6 @@ export function aStar(startNode, endNode) {
         ["left", "top", "right", "bottom"].forEach(dir => {
             if (!currentNode[dir]) return;
             let neighbor = nodes[currentNode[dir].index];
-            console.log(neighbor.occupied)
             if (!neighbor || neighbor.occupied || closedSet.includes(neighbor)) {
                 return;
             }
@@ -667,8 +752,12 @@ export function drawWire(stage, clickedNodes) {
     let node1_index = (clickedNodes[0].x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
     let node2Row = (clickedNodes[1].y() - GRIDSIZE) / GRIDSIZE
     let node2_index = (clickedNodes[1].x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+    nodeCircles.forEach((node) => {
+        let nodeRow = (node.y() - GRIDSIZE) / GRIDSIZE
+        let nodeIdx = (node.x() - GRIDSIZE) / GRIDSIZE + (nodeRow * (rownumberofNodes + 1))
+        if (nodeIdx != node1_index && nodeIdx != node2_index) nodes[nodeIdx].occupied = true;
+    })
     let wireNodes = aStar(nodes[node1_index], nodes[node2_index]);
-    console.log(wireNodes)
     if (!wireNodes) return false;
     let wire = new Wire();
     wire.gridPoints = wireNodes;
@@ -683,6 +772,27 @@ export function drawWire(stage, clickedNodes) {
         wire.drawnLines.push(line);
     }
     wires.push(wire);
+    nodeCircles.forEach((node) => {
+        let nodeRow = (node.y() - GRIDSIZE) / GRIDSIZE
+        let nodeIdx = (node.x() - GRIDSIZE) / GRIDSIZE + (nodeRow * (rownumberofNodes + 1))
+        nodes[nodeIdx].occupied = false;
+    })
+    removeNodes();
+}
+//========================================Dragging Toggling Function==========================================
+export function disableDragging() {
+    components.forEach((comp) => {
+        if (comp === null) return;
+        comp.draggable(false)
+    })
+    ground.draggable(false);
+}
+export function enableDragging() {
+    components.forEach((comp) => {
+        if (comp === null) return;
+        comp.draggable(true)
+    })
+    ground.draggable(true);
 }
 //========================================Generate Net list Function==========================================
 function haveCommonNodes(node1, node2) {
@@ -707,9 +817,9 @@ function updateNodes() {
         if (wire == null) return;
         for (let i = 1; i < nodeCounter; i++) {
             for (let j = 0; j < wire.gridPoints.length; j++) {
-                if (uniqueNodes[`N${i}`][`'${wire.gridPoints[j].index}'`]) {
+                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) {
                     for (let k = 0; k < wire.gridPoints.length; k++) {
-                        uniqueNodes[`N${i}`][`'${wire.gridPoints[k].index}'`] = true;
+                        uniqueNodes[`N${i}`][`${wire.gridPoints[k].index}`] = true;
                     }
                     return;
                 }
@@ -717,7 +827,7 @@ function updateNodes() {
         }
         if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {};
         for (let i = 0; i < wire.gridPoints.length; i++) {
-            uniqueNodes[`N${nodeCounter}`][`'${wire.gridPoints[i].index}'`] = true;
+            uniqueNodes[`N${nodeCounter}`][`${wire.gridPoints[i].index}`] = true;
         }
         nodeCounter++;
     })
@@ -744,42 +854,171 @@ function updateNodes() {
         let node1Defined = false;
         let node2Defined = false;
         for (let i = 1; i < nodeCounter; i++) {
-            if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) {
+            if (uniqueNodes[`N${i}`][`${component.node1.index}`]) {
                 node1Defined = true;
             }
-            if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) {
+            if (uniqueNodes[`N${i}`][`${component.node2.index}`]) {
                 node2Defined = true;
             }
         }
         if (!node1Defined) {
             uniqueNodes[`N${nodeCounter}`] = {};
-            uniqueNodes[`N${nodeCounter}`][`'${component.node1.index}'`] = true;
+            uniqueNodes[`N${nodeCounter}`][`${component.node1.index}`] = true;
             nodeCounter++;
         }
         if (!node2Defined) {
             uniqueNodes[`N${nodeCounter}`] = {};
-            uniqueNodes[`N${nodeCounter}`][`'${component.node2.index}'`] = true;
+            uniqueNodes[`N${nodeCounter}`][`${component.node2.index}`] = true;
             nodeCounter++;
         }
     })
+    for (let i = 1; i < nodeCounter; i++) {
+        if (uniqueNodes[`N${i}`][`${ground.node.index}`]) {
+            uniqueNodes['GND'] = uniqueNodes[`N${i}`];
+            let j = i
+            for (; j < nodeCounter - 1; j++) {
+                uniqueNodes[`N${j}`] = uniqueNodes[`N${j + 1}`]
+            }
+            delete uniqueNodes[`N${j}`];
+            nodeCounter--;
+            break;
+        }
+    }
+    if (!uniqueNodes['GND']) {
+        uniqueNodes['GND'] = {};
+        uniqueNodes['GND'][`${ground.node.index}`] = true;
+    }
 }
 export function genNetList() {
     updateNodes();
+    let netList = [];
     components.forEach((component) => {
-        let out = '';
-        out += component.name;
-
-        for (let i = 1; i < nodeCounter; i++) {
-            if (uniqueNodes[`N${i}`][`'${component.node1.index}'`]) {
-                out += ` N${i} `; break;
+        if (component === null) return;
+        // let out = '';
+        // out += component.getSymbol();
+        let node1, node2;
+        for (const key of Object.keys(uniqueNodes)) {
+            if (uniqueNodes[key][`${component.node1.index}`]) node1 = key;
+        }
+        for (const key of Object.keys(uniqueNodes)) {
+            if (uniqueNodes[key][`${component.node2.index}`]) node2 = key;
+        }
+        // out += component.value;
+        // out += component.prefix === ' ' ? '' : component.prefix;
+        // out += component.unit
+        // console.log(out)
+        let listObj = { type: component.getSymbol(), Node1: node1, Node2: node2, Value: component.value, exponent: getExponent(component.prefix) }
+        netList.push(listObj)
+    })
+    console.log(netList)
+    const numberOfNodes = Object.keys(uniqueNodes).length - 1;
+    let gMatrix = new Array(numberOfNodes)
+    let iMatrix = new Array(numberOfNodes);
+    iMatrix.fill(0)
+    for (let i = 0; i < numberOfNodes; i++) {
+        gMatrix[i] = new Array(numberOfNodes);
+        gMatrix[i].fill(0);
+    }
+    for (let i = 0; i < netList.length; i++) {
+        if (netList[i].type === 'R') {
+            let node1 = parseInt(netList[i].Node1.slice(1))
+            let node2 = parseInt(netList[i].Node2.slice(1))
+            if (!Number.isNaN(node1)) {
+                gMatrix[node1 - 1][node1 - 1] += 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+            }
+            if (!Number.isNaN(node2)) {
+                gMatrix[node2 - 1][node2 - 1] += 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+            }
+            if (!Number.isNaN(node1) && !Number.isNaN(node2)) {
+                gMatrix[node1 - 1][node2 - 1] -= 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+                gMatrix[node2 - 1][node1 - 1] -= 1 / (parseInt(netList[i].Value) * netList[i].exponent);
             }
         }
-        for (let i = 1; i < nodeCounter; i++) {
-            if (uniqueNodes[`N${i}`][`'${component.node2.index}'`]) { out += `N${i} `; break; }
+        else if (netList[i].type === 'Cs') {
+            let node1 = parseInt(netList[i].Node1.slice(1))
+            let node2 = parseInt(netList[i].Node2.slice(1))
+            if (!Number.isNaN(node1)) {
+                iMatrix[node1 - 1] += parseInt(netList[i].Value);
+            }
+            if (!Number.isNaN(node2)) {
+                iMatrix[node2 - 1] -= parseInt(netList[i].Value);
+            }
         }
-        out += component.value;
-        out += component.unit
-        console.log(out)
-    })
+    }
+    for (let i = 0; i < numberOfNodes; i++) {
+        console.log(gMatrix[i])
+    }
+    console.log(iMatrix)
+    let nodeVoltages = math.lusolve(gMatrix, iMatrix);
+    let nodesText = [];
+    let nodeColors = []
+    for (let i = 0; i < nodeVoltages.length; i++) {
+        let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
+        let curr = nodes[nodeIdx]
+        const node = new Konva.Circle({
+            x: curr.position.x,
+            y: curr.position.y,
+            radius: 4,
+            fill: radnomColor()
+        })
+        layer.add(node);
+        nodeColors.push(node);
+    }
+    for (let i = 0; i < nodeColors.length; i++) {
+        const text = new Konva.Text({
+            x: 700, // Center the text above the resistance
+            y: 200 + 50 * i, // Position it above the resistance
+            text: `${nodeVoltages[i]}V`,
+            fontSize: 20,
+            fontFamily: 'Calibri',
+            fill: nodeColors[i].fill(),
+            align: 'center',
+            weight: 'bold',
+            listening: false // Make it non-interactive
+        });
+        text.offsetX(text.width() / 2);
+        text.offsetY(text.height() / 2);
+        text.x(curr.position.x);
+        text.y(text.y() + 30)
+        layer.add(text);
+    }
+    layer.batchDraw()
+
 }
+function getExponent(prefix) {
+    switch (prefix) {
+        case 'p': // pico
+            return Math.pow(10, -12);
+        case 'n': // nano
+            return Math.pow(10, -9);
+        case 'µ': // micro
+            return Math.pow(10, -6);
+        case 'm': // milli
+            return Math.pow(10, -3);
+        case 'c': // centi
+            return Math.pow(10, -2);
+        case ' ': // no prefix, base unit
+            return Math.pow(10, 0);
+        case 'k': // kilo
+            return Math.pow(10, 3);
+        case 'M': // mega
+            return Math.pow(10, 6);
+        case 'G': // giga
+            return Math.pow(10, 9);
+        case 'T': // tera
+            return Math.pow(10, 12);
+        default:
+            throw new Error(`Unknown prefix: ${prefix}`);
+    }
+}
+function radnomColor() {
+    // Generate random RGB values in the lower range (0-128) for a dark color
+    const r = Math.floor(Math.random() * 128);
+    const g = Math.floor(Math.random() * 128);
+    const b = Math.floor(Math.random() * 128);
+
+    // Convert to hexadecimal and return as a color code
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 //========================================Helper Functions End==========================================
