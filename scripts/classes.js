@@ -1,6 +1,7 @@
 import Konva from "konva";
 
 let currentId = -1;
+let wireID = 0;
 
 //==============================================Base Component Class=============================================
 class Component extends Konva.Image {
@@ -134,6 +135,7 @@ export class Switch extends Component {
 //===============================================Wire Component Class=============================================
 export class Wire {
     constructor() {
+        this.ID = wireID++;
         this.type = 'Wire';
         this.gridPoints = [];
         this.drawnLines = [];

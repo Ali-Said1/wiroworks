@@ -788,17 +788,15 @@ run.addEventListener('click', ()=>{
     (0, _helpers.genNetList)();
 }) // =============================================================================================================
  // =============================================================================================================
- //TODO: Add wire deletion, double click on wire and confirm with alert..
- //TODO: Fix precision and 0.0001 V = 1 mV etc....
- //TODO: node with more than one node clicked causes error
- //TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
- //TODO: Remove connected wires on removing element
- //TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
- //TODO: add isConnected to the components when wires are added is connected is true for the linked components
+ //TODO: Prettier the output ....
  //TODO: calculations create a table for the output with all branch currents and node values
+ //TODO: the solved array has the current through the voltage source....
+ //FIXME: node with more than one node clicked causes error ... idk
+ //TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
  //TODO: modified nodal analysis
  //TODO: Dependent sources
  //TODO: AC
+ //FIXME: Remove the isConnected Property and all related validation..
 ;
 
 },{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
@@ -12458,15 +12456,15 @@ function checkNearby(component, newcoords) {
             if (boundGndx <= 30 && boundGndy <= 90) return true;
         }
     }
-    for (const curr1 of components){
-        if (curr1 == null || component.ID == curr1.ID) continue;
-        let currx = curr1.x();
-        let curry = curr1.y();
+    for (const curr of components){
+        if (curr == null || component.ID == curr.ID) continue;
+        let currx = curr.x();
+        let curry = curr.y();
         let boundx = Math.abs(currx - newcoords[0]);
         let boundy = Math.abs(curry - newcoords[1]);
-        if (component.horizontal && curr1.horizontal) {
+        if (component.horizontal && curr.horizontal) {
             if (boundx <= 90 && boundy <= 30) return true;
-        } else if (!component.horizontal && !curr1.horizontal) {
+        } else if (!component.horizontal && !curr.horizontal) {
             if (boundx <= 30 && boundy <= 90) return true;
         } else {
             if (boundx <= 90 && boundy <= 90) return true;
@@ -12475,13 +12473,13 @@ function checkNearby(component, newcoords) {
     return false;
 }
 function checkNearbybyCoords(coords) {
-    for (const curr1 of components){
-        if (curr1 == null) continue;
-        let currx = curr1.x();
-        let curry = curr1.y();
+    for (const curr of components){
+        if (curr == null) continue;
+        let currx = curr.x();
+        let curry = curr.y();
         let boundx = Math.abs(currx - coords[0]);
         let boundy = Math.abs(curry - coords[1]);
-        if (curr1.horizontal) {
+        if (curr.horizontal) {
             if (boundx <= 90 && boundy <= 30) return true;
         } else {
             if (boundx <= 90 && boundy <= 90) return true;
@@ -12965,7 +12963,7 @@ function drawWire(stage, clickedNodes) {
             ],
             stroke: 'black',
             strokeWidth: 2,
-            listening: false
+            listening: true
         });
         layer.add(line);
         wire.drawnLines.push(line);
@@ -12977,6 +12975,17 @@ function drawWire(stage, clickedNodes) {
         nodes[nodeIdx].occupied = false;
     });
     removeNodes();
+    wire.drawnLines.forEach((line)=>{
+        line.on('dblclick', ()=>{
+            console.log(wires);
+            if (addingWire) return;
+            wire.drawnLines.forEach((line)=>{
+                line.remove();
+            });
+            wires[wire.ID] = null;
+            console.log(wires);
+        });
+    });
 }
 function disableDragging() {
     components.forEach((comp)=>{
@@ -13091,11 +13100,18 @@ function genNetList() {
     });
     console.log(netList);
     const numberOfNodes = Object.keys(uniqueNodes).length - 1;
-    let gMatrix = new Array(numberOfNodes);
-    let iMatrix = new Array(numberOfNodes);
+    let voltageSourceCount = 0;
+    let voltageSourceIndeces = [];
+    for(let i = 0; i < netList.length; i++)if (netList[i].type === 'Vs') {
+        voltageSourceCount++;
+        voltageSourceIndeces.push(i);
+    }
+    const matrixSize = numberOfNodes + voltageSourceCount;
+    let gMatrix = new Array(matrixSize);
+    let iMatrix = new Array(matrixSize);
     iMatrix.fill(0);
-    for(let i = 0; i < numberOfNodes; i++){
-        gMatrix[i] = new Array(numberOfNodes);
+    for(let i = 0; i < matrixSize; i++){
+        gMatrix[i] = new Array(matrixSize);
         gMatrix[i].fill(0);
     }
     for(let i = 0; i < netList.length; i++){
@@ -13111,21 +13127,40 @@ function genNetList() {
         } else if (netList[i].type === 'Cs') {
             let node1 = parseInt(netList[i].Node1.slice(1));
             let node2 = parseInt(netList[i].Node2.slice(1));
-            if (!Number.isNaN(node1)) iMatrix[node1 - 1] += parseInt(netList[i].Value);
-            if (!Number.isNaN(node2)) iMatrix[node2 - 1] -= parseInt(netList[i].Value);
+            if (!Number.isNaN(node1)) iMatrix[node1 - 1] += parseInt(netList[i].Value * netList[i].exponent);
+            if (!Number.isNaN(node2)) iMatrix[node2 - 1] -= parseInt(netList[i].Value * netList[i].exponent);
         }
+    }
+    for(let i = 0; i < voltageSourceIndeces.length; i++){
+        const currentVSource = netList[voltageSourceIndeces[i]];
+        let node1 = parseInt(currentVSource.Node1.slice(1));
+        let node2 = parseInt(currentVSource.Node2.slice(1));
+        if (!Number.isNaN(node1)) {
+            console.log(node1 - 1);
+            console.log(numberOfNodes + i);
+            console.log(gMatrix);
+            gMatrix[node1 - 1][numberOfNodes + i] += 1;
+            gMatrix[numberOfNodes + i][node1 - 1] += 1;
+        }
+        if (!Number.isNaN(node2)) {
+            gMatrix[node2 - 1][numberOfNodes + i] -= 1;
+            gMatrix[numberOfNodes + i][node2 - 1] -= 1;
+        }
+        iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
     }
     for(let i = 0; i < numberOfNodes; i++)console.log(gMatrix[i]);
     console.log(iMatrix);
     let nodeVoltages = math.lusolve(gMatrix, iMatrix);
+    console.log(nodeVoltages);
     let nodesText = [];
     let nodeColors = [];
-    for(let i = 0; i < nodeVoltages.length; i++){
+    for(let i = 0; i < nodeVoltages.length - voltageSourceCount; i++){
+        console.log(i);
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
-        let curr1 = nodes[nodeIdx];
+        let curr = nodes[nodeIdx];
         const node = new (0, _konvaDefault.default).Circle({
-            x: curr1.position.x,
-            y: curr1.position.y,
+            x: curr.position.x,
+            y: curr.position.y,
             radius: 4,
             fill: radnomColor()
         });
@@ -13136,7 +13171,7 @@ function genNetList() {
         const text = new (0, _konvaDefault.default).Text({
             x: 700,
             y: 200 + 50 * i,
-            text: `${nodeVoltages[i]}V`,
+            text: `${formatOutput(nodeVoltages[i])}V`,
             fontSize: 20,
             fontFamily: 'Calibri',
             fill: nodeColors[i].fill(),
@@ -13146,8 +13181,8 @@ function genNetList() {
         });
         text.offsetX(text.width() / 2);
         text.offsetY(text.height() / 2);
-        text.x(curr.position.x);
-        text.y(text.y() + 30);
+        // text.x(curr.position.x);
+        // text.y(text.y() + 30)
         layer.add(text);
     }
     layer.batchDraw();
@@ -13185,6 +13220,28 @@ function radnomColor() {
     const b = Math.floor(Math.random() * 128);
     // Convert to hexadecimal and return as a color code
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+function formatOutput(value) {
+    if (Math.abs(Number(value)) >= 1e12) // Teras (T)
+    return (Number(value) / 1e12).toFixed(3) + ' T';
+    else if (Math.abs(Number(value)) >= 1e9) // Gigas (G)
+    return (Number(value) / 1e9).toFixed(3) + ' G';
+    else if (Math.abs(Number(value)) >= 1e6) // Megas (M)
+    return (Number(value) / 1e6).toFixed(3) + ' M';
+    else if (Math.abs(Number(value)) >= 1e3) // Kilos (k)
+    return (Number(value) / 1e3).toFixed(3) + ' k';
+    else if (Math.abs(Number(value)) >= 1) // Base unit
+    return Number(value).toFixed(3);
+    else if (Math.abs(Number(value)) >= 1e-3) // Millis (m)
+    return (Number(value) * 1e3).toFixed(3) + ' m';
+    else if (Math.abs(Number(value)) >= 1e-6) // Micros (μ)
+    return (Number(value) * 1e6).toFixed(3) + " \u03BC";
+    else if (Math.abs(Number(value)) >= 1e-9) // Nanos (n)
+    return (Number(value) * 1e9).toFixed(3) + ' n';
+    else if (Math.abs(Number(value)) >= 1e-12) // Picos (p)
+    return (Number(value) * 1e12).toFixed(3) + ' p';
+    else // Too small to format meaningfully
+    return '0.000';
 } //========================================Helper Functions End==========================================
 
 },{"./classes":"9HPQv","konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","93da4302baae05a3":"fbtFx"}],"9HPQv":[function(require,module,exports,__globalThis) {
@@ -13205,6 +13262,7 @@ parcelHelpers.export(exports, "Wire", ()=>Wire);
 var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
 let currentId = -1;
+let wireID = 0;
 //==============================================Base Component Class=============================================
 class Component extends (0, _konvaDefault.default).Image {
     constructor(element){
@@ -13338,6 +13396,7 @@ class Switch extends Component {
 }
 class Wire {
     constructor(){
+        this.ID = wireID++;
         this.type = 'Wire';
         this.gridPoints = [];
         this.drawnLines = [];

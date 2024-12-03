@@ -766,7 +766,7 @@ export function drawWire(stage, clickedNodes) {
             points: [wireNodes[i].position.x, wireNodes[i].position.y, wireNodes[i + 1].position.x, wireNodes[i + 1].position.y],
             stroke: 'black',
             strokeWidth: 2,
-            listening: false,
+            listening: true,
         });
         layer.add(line);
         wire.drawnLines.push(line);
@@ -778,6 +778,17 @@ export function drawWire(stage, clickedNodes) {
         nodes[nodeIdx].occupied = false;
     })
     removeNodes();
+    wire.drawnLines.forEach((line) => {
+        line.on('dblclick', () => {
+            console.log(wires);
+            if (addingWire) return;
+            wire.drawnLines.forEach((line) => {
+                line.remove();
+            })
+            wires[wire.ID] = null;
+            console.log(wires);
+        })
+    })
 }
 //========================================Dragging Toggling Function==========================================
 export function disableDragging() {
@@ -912,11 +923,20 @@ export function genNetList() {
     })
     console.log(netList)
     const numberOfNodes = Object.keys(uniqueNodes).length - 1;
-    let gMatrix = new Array(numberOfNodes)
-    let iMatrix = new Array(numberOfNodes);
+    let voltageSourceCount = 0;
+    let voltageSourceIndeces = [];
+    for (let i = 0; i < netList.length; i++) {
+        if (netList[i].type === 'Vs') {
+            voltageSourceCount++;
+            voltageSourceIndeces.push(i);
+        };
+    }
+    const matrixSize = numberOfNodes + voltageSourceCount;
+    let gMatrix = new Array(matrixSize)
+    let iMatrix = new Array(matrixSize);
     iMatrix.fill(0)
-    for (let i = 0; i < numberOfNodes; i++) {
-        gMatrix[i] = new Array(numberOfNodes);
+    for (let i = 0; i < matrixSize; i++) {
+        gMatrix[i] = new Array(matrixSize);
         gMatrix[i].fill(0);
     }
     for (let i = 0; i < netList.length; i++) {
@@ -938,21 +958,40 @@ export function genNetList() {
             let node1 = parseInt(netList[i].Node1.slice(1))
             let node2 = parseInt(netList[i].Node2.slice(1))
             if (!Number.isNaN(node1)) {
-                iMatrix[node1 - 1] += parseInt(netList[i].Value);
+                iMatrix[node1 - 1] += parseInt(netList[i].Value * netList[i].exponent);
             }
             if (!Number.isNaN(node2)) {
-                iMatrix[node2 - 1] -= parseInt(netList[i].Value);
+                iMatrix[node2 - 1] -= parseInt(netList[i].Value * netList[i].exponent);
             }
         }
+    }
+    for (let i = 0; i < voltageSourceIndeces.length; i++) {
+        const currentVSource = netList[voltageSourceIndeces[i]];
+        let node1 = parseInt(currentVSource.Node1.slice(1));
+        let node2 = parseInt(currentVSource.Node2.slice(1));
+        if (!Number.isNaN(node1)) {
+            console.log(node1 - 1)
+            console.log(numberOfNodes + i)
+            console.log(gMatrix)
+            gMatrix[node1 - 1][numberOfNodes + i] += 1;
+            gMatrix[numberOfNodes + i][node1 - 1] += 1;
+        }
+        if (!Number.isNaN(node2)) {
+            gMatrix[node2 - 1][numberOfNodes + i] -= 1;
+            gMatrix[numberOfNodes + i][node2 - 1] -= 1;
+        }
+        iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
     }
     for (let i = 0; i < numberOfNodes; i++) {
         console.log(gMatrix[i])
     }
     console.log(iMatrix)
     let nodeVoltages = math.lusolve(gMatrix, iMatrix);
+    console.log(nodeVoltages)
     let nodesText = [];
     let nodeColors = []
-    for (let i = 0; i < nodeVoltages.length; i++) {
+    for (let i = 0; i < nodeVoltages.length - voltageSourceCount; i++) {
+        console.log(i)
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
         let curr = nodes[nodeIdx]
         const node = new Konva.Circle({
@@ -968,7 +1007,7 @@ export function genNetList() {
         const text = new Konva.Text({
             x: 700, // Center the text above the resistance
             y: 200 + 50 * i, // Position it above the resistance
-            text: `${nodeVoltages[i]}V`,
+            text: `${formatOutput(nodeVoltages[i])}V`,
             fontSize: 20,
             fontFamily: 'Calibri',
             fill: nodeColors[i].fill(),
@@ -978,8 +1017,8 @@ export function genNetList() {
         });
         text.offsetX(text.width() / 2);
         text.offsetY(text.height() / 2);
-        text.x(curr.position.x);
-        text.y(text.y() + 30)
+        // text.x(curr.position.x);
+        // text.y(text.y() + 30)
         layer.add(text);
     }
     layer.batchDraw()
@@ -1021,4 +1060,37 @@ function radnomColor() {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+function formatOutput(value) {
+    if (Math.abs(Number(value)) >= 1e12) {
+        // Teras (T)
+        return (Number(value) / 1e12).toFixed(3) + ' T';
+    } else if (Math.abs(Number(value)) >= 1e9) {
+        // Gigas (G)
+        return (Number(value) / 1e9).toFixed(3) + ' G';
+    } else if (Math.abs(Number(value)) >= 1e6) {
+        // Megas (M)
+        return (Number(value) / 1e6).toFixed(3) + ' M';
+    } else if (Math.abs(Number(value)) >= 1e3) {
+        // Kilos (k)
+        return (Number(value) / 1e3).toFixed(3) + ' k';
+    } else if (Math.abs(Number(value)) >= 1) {
+        // Base unit
+        return Number(value).toFixed(3);
+    } else if (Math.abs(Number(value)) >= 1e-3) {
+        // Millis (m)
+        return (Number(value) * 1e3).toFixed(3) + ' m';
+    } else if (Math.abs(Number(value)) >= 1e-6) {
+        // Micros (μ)
+        return (Number(value) * 1e6).toFixed(3) + ' μ';
+    } else if (Math.abs(Number(value)) >= 1e-9) {
+        // Nanos (n)
+        return (Number(value) * 1e9).toFixed(3) + ' n';
+    } else if (Math.abs(Number(value)) >= 1e-12) {
+        // Picos (p)
+        return (Number(value) * 1e12).toFixed(3) + ' p';
+    } else {
+        // Too small to format meaningfully
+        return '0.000';
+    }
+}
 //========================================Helper Functions End==========================================

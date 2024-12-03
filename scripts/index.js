@@ -200,14 +200,12 @@ run.addEventListener('click', () => {
 // =============================================================================================================
 
 // =============================================================================================================
-//TODO: Add wire deletion, double click on wire and confirm with alert..
-//TODO: Fix precision and 0.0001 V = 1 mV etc....
-//TODO: node with more than one node clicked causes error
-//TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
-//TODO: Remove connected wires on removing element
-//TODO: wire logic user clicks on two points, if there is a component in between alert and dont draw
-//TODO: add isConnected to the components when wires are added is connected is true for the linked components
+//TODO: Prettier the output ....
 //TODO: calculations create a table for the output with all branch currents and node values
+//TODO: the solved array has the current through the voltage source....
+//FIXME: node with more than one node clicked causes error ... idk
+//TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
 //TODO: modified nodal analysis
 //TODO: Dependent sources
 //TODO: AC
+//FIXME: Remove the isConnected Property and all related validation..
