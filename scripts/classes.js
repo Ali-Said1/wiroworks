@@ -13,7 +13,7 @@ class Component extends Konva.Image {
         this.horizontal = true;
         this.type = ''
         this.value = 1;
-        this.polarity = 'NULL'
+        // this.polarity = 'NULL'
         this.node1Connected = false;
         this.node2Connected = false;
         this.ID = currentId++;
@@ -52,7 +52,7 @@ class Component extends Konva.Image {
 }
 //==============================================Ground Component Class=============================================
 export class Ground extends Component {
-    static count = 1;
+    //static count = 1;
     constructor(element) {
         super(element);
         this.type = 'Ground'
@@ -62,9 +62,9 @@ export class Ground extends Component {
     getSymbol() {
         return 'GND';
     }
-    decreaseCount() {
-        Ground.count--;
-    }
+    // decreaseCount() {
+    //     Ground.count--;
+    // }
 }
 //==============================================Resistance Component Class=============================================
 export class Resistance extends Component {

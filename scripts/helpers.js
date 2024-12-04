@@ -19,6 +19,7 @@ export let nodeCircles = []; // A list of the drawn circles about each node
 export let wires = []; // A list of all the wire generated
 export let nodes = []; // All the nodes within the active program
 export let addingWire = false;
+export let outputNodes = [];
 let uniqueNodes = {};
 let nodeCounter = 1;
 export function setAddingWire(value) {
@@ -35,7 +36,7 @@ export function addCompSVG(image, svg) {
 
 //========================================Grid Drawing Function==========================================
 export function drawGrid(stage, layer, gridSize) {
-    const width = stage.width();
+    const width = stage.width(); //TODO: remove the stage, already defined
     const height = stage.height();
 
     // Vertical lines
@@ -72,7 +73,7 @@ export function drawGrid(stage, layer, gridSize) {
             });
             layer.add(circle);
             // Generate Graph
-            if (x > 0 && y > 0) {
+            if (x > 0 && y > 0) { // TODO: Remove this condition
                 let node = {};
 
                 let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
@@ -334,7 +335,7 @@ export function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2)
     component.offsetY(component.height() / 2)
-    console.log(node1_index)
+    //console.log(node1_index)
     component.node1 = nodes[node1_index]
     component.node2 = nodes[node2_index]
     nodes[component.node1.right.index].occupied = true;
@@ -345,7 +346,7 @@ export function initializeComptext(component) {
     const text = new Konva.Text({
         x: component.x(), // Center the text above the resistance
         y: component.y() - 40, // Position it above the resistance
-        text: `${component.name} ${component.getValue()} ${component.unit}`,
+        text: `${component.name} ${component.getValue()}${component.unit}`,
         fontSize: 20,
         fontFamily: 'Calibri',
         fill: 'black',
@@ -431,10 +432,7 @@ export function componentHandler(component, text) {
                         component.horizontal = false;
                         component.setRotationvalue(previousRotation);
                         const norotate = document.getElementById('norotate');
-                        norotate.style.display = 'block'
-                        setTimeout(() => {
-                            norotate.style.display = 'none';
-                        }, 2000)
+                        flashMsg(norotate)
                     } else {
                         if (!previousOrient)
                             component.position({ x: snapToGrid(component.x()) - 15, y: snapToGrid(component.y()) })
@@ -447,10 +445,7 @@ export function componentHandler(component, text) {
                         component.horizontal = true;
                         component.setRotationvalue(previousRotation);
                         const norotate = document.getElementById('norotate');
-                        norotate.style.display = 'block'
-                        setTimeout(() => {
-                            norotate.style.display = 'none';
-                        }, 2000)
+                        flashMsg(norotate)
                     }
                     else {
                         if (previousOrient)
@@ -463,7 +458,7 @@ export function componentHandler(component, text) {
                 handleCompNodes(component)
                 setOccupied(component)
             }
-            else {
+            else { // TODO: Remove this condition
                 const disconnect = document.getElementById('disconnect');
                 disconnect.style.display = 'block'
                 setTimeout(() => {
@@ -495,7 +490,7 @@ export function dragendHandler(component, newcoords, currcoords) {
     component.position({ x: currcoords[0], y: currcoords[1] });
     handleCompNodes(component)
     setOccupied(component)
-    updateText(component, component.text);
+    updateText(component);
 }
 //========================================Component Nodes Handler Function==========================================
 export function handleCompNodes(component) {
@@ -564,7 +559,7 @@ export function updateText(component) {
         component.text.rotation(270);
         component.text.position({ x: component.x() - 40, y: component.y() })
     }
-    component.text.text(`${component.name} ${component.getValue()} ${component.prefix === " " ? '' : component.prefix}${component.unit}`);
+    component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit}`);
     component.text.hide();
     if (component.shownText)
         component.text.show();
@@ -988,41 +983,23 @@ export function genNetList() {
     console.log(iMatrix)
     let nodeVoltages = math.lusolve(gMatrix, iMatrix);
     console.log(nodeVoltages)
-    let nodesText = [];
-    let nodeColors = []
+    let nodeColors = [];
     for (let i = 0; i < nodeVoltages.length - voltageSourceCount; i++) {
-        console.log(i)
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
         let curr = nodes[nodeIdx]
+        let currFill = randomColor(nodeColors);
         const node = new Konva.Circle({
             x: curr.position.x,
             y: curr.position.y,
             radius: 4,
-            fill: radnomColor()
+            fill: currFill
         })
         layer.add(node);
-        nodeColors.push(node);
+        nodeColors.push(currFill);
+        outputNodes.push(node);
     }
-    for (let i = 0; i < nodeColors.length; i++) {
-        const text = new Konva.Text({
-            x: 700, // Center the text above the resistance
-            y: 200 + 50 * i, // Position it above the resistance
-            text: `${formatOutput(nodeVoltages[i])}V`,
-            fontSize: 20,
-            fontFamily: 'Calibri',
-            fill: nodeColors[i].fill(),
-            align: 'center',
-            weight: 'bold',
-            listening: false // Make it non-interactive
-        });
-        text.offsetX(text.width() / 2);
-        text.offsetY(text.height() / 2);
-        // text.x(curr.position.x);
-        // text.y(text.y() + 30)
-        layer.add(text);
-    }
+    drawTable(nodeVoltages, voltageSourceCount, nodeColors)
     layer.batchDraw()
-
 }
 function getExponent(prefix) {
     switch (prefix) {
@@ -1050,16 +1027,24 @@ function getExponent(prefix) {
             throw new Error(`Unknown prefix: ${prefix}`);
     }
 }
-function radnomColor() {
-    // Generate random RGB values in the lower range (0-128) for a dark color
-    const r = Math.floor(Math.random() * 128);
-    const g = Math.floor(Math.random() * 128);
-    const b = Math.floor(Math.random() * 128);
+function randomColor(nodeColors) {
+    const getRandomDarkColor = () => {
+        // Generate random RGB values in the range (128-255) for a bright color
+        const r = Math.floor(Math.random() * 128); // 128 to 255
+        const g = Math.floor(Math.random() * 128); // 128 to 255
+        const b = Math.floor(Math.random() * 128); // 128 to 255
 
-    // Convert to hexadecimal and return as a color code
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    };
+
+    let newColor;
+
+    do {
+        newColor = getRandomDarkColor();
+    } while (nodeColors.includes(newColor)); // Repeat until a unique color is found
+
+    return newColor;
 }
-
 function formatOutput(value) {
     if (Math.abs(Number(value)) >= 1e12) {
         // Teras (T)
@@ -1092,5 +1077,122 @@ function formatOutput(value) {
         // Too small to format meaningfully
         return '0.000';
     }
+}
+export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
+    const rows = nodeVoltages.length + 1;
+    const cols = 2;
+    const cellWidth = 100;
+    const cellHeight = 40;
+
+    // Create a group for the table
+    const tableGroup = new Konva.Group({
+        x: 50,
+        y: 50,
+        draggable: true // Make the group draggable
+    });
+
+    const rect = new Konva.Rect({
+        x: 50,
+        y: 50,
+        width: cellWidth,
+        height: cellHeight,
+        fill: 'lightgray',
+        stroke: 'black',
+        strokeWidth: 1
+    });
+    tableGroup.add(rect);
+    const text = new Konva.Text({
+        x: 50 + 10, // padding
+        y: 50 + 10, // padding
+        text: 'Node',
+        fontSize: 16,
+        fontFamily: 'Calibri',
+        fill: 'black'
+    });
+    tableGroup.add(text);
+    const rect2 = new Konva.Rect({
+        x: 50 + cellWidth,
+        y: 50,
+        width: cellWidth,
+        height: cellHeight,
+        fill: 'lightgray',
+        stroke: 'black',
+        strokeWidth: 1
+    });
+    tableGroup.add(rect2);
+    const text2 = new Konva.Text({
+        x: 50 + cellWidth + 10, // padding
+        y: 50 + 10, // padding
+        text: 'Voltage',
+        fontSize: 16,
+        fontFamily: 'Calibri',
+        fill: 'black'
+    });
+    tableGroup.add(text2);
+    console.log(nodeVoltages.length - voltageSourceCount)
+    for (let i = 0; i < nodeVoltages.length - voltageSourceCount; i++) {
+        const node = new Konva.Rect({
+            x: 50,
+            y: (i + 1) * cellHeight + 50,
+            width: cellWidth,
+            height: cellHeight,
+            fill: 'white', // Header row color
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(node);
+        const nodeName = new Konva.Text({
+            x: 50 + 10, // padding
+            y: (i + 1) * cellHeight + 60, // padding
+            text: `N${i + 1}`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: nodeColors[i]
+        });
+        tableGroup.add(nodeName);
+        const nodeVal = new Konva.Rect({
+            x: 50 + cellWidth,
+            y: 50 + (i + 1) * cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+            fill: 'white', // Header row color
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(nodeVal);
+        const nodeValTxt = new Konva.Text({
+            x: 50 + cellWidth + 10, // padding
+            y: (i + 1) * cellHeight + 60, // padding
+            text: `${formatOutput(nodeVoltages[i])}V`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: 'black'
+        });
+        tableGroup.add(nodeValTxt);
+    }
+
+    layer.add(tableGroup);
+    stage.on('click', (e) => {
+        // Get the bounding box of the group
+        const rect = tableGroup.getClientRect();
+
+        // Get click position
+        const clickX = e.evt.clientX;
+        const clickY = e.evt.clientY;
+
+        // Check if the click is inside the bounding box
+        const isInsideGroup = (
+            clickX >= rect.x &&
+            clickX <= rect.x + rect.width &&
+            clickY >= rect.y &&
+            clickY <= rect.y + rect.height
+        );
+
+        if (!isInsideGroup) {
+            outputNodes.forEach(node => node.remove())
+            tableGroup.remove();
+            outputNodes = [];
+        }
+    });
 }
 //========================================Helper Functions End==========================================

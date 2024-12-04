@@ -16,10 +16,7 @@ resistance.addEventListener('click', () => {
     if (addingWire) return;
     if (checkNearbybyCoords([75, 90])) {
         const atOrigin = document.getElementById('atOriginalert');
-        atOrigin.style.display = 'block'
-        setTimeout(() => {
-            atOrigin.style.display = 'none';
-        }, 2000)
+        flashMsg(atOrigin);
         return;
     }
     var imageObj = new Image();
@@ -29,7 +26,6 @@ resistance.addEventListener('click', () => {
     <polyline points="15,15 20,5 30,25 40,5 50,25 60,5 70,25 75,15" fill="none" stroke="black" stroke-width="2"/>
     <line x1="75" y1="15" x2="90" y2="15" stroke="black" stroke-width="2"/>
     </svg>
-    
     `;
     addCompSVG(imageObj, resistanceSvg)
     imageObj.onload = function () {
@@ -209,3 +205,4 @@ run.addEventListener('click', () => {
 //TODO: Dependent sources
 //TODO: AC
 //FIXME: Remove the isConnected Property and all related validation..
+//FIXME: Set the text.text before offset in updateTExt()

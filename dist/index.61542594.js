@@ -613,10 +613,7 @@ resistance.addEventListener('click', ()=>{
         90
     ])) {
         const atOrigin = document.getElementById('atOriginalert');
-        atOrigin.style.display = 'block';
-        setTimeout(()=>{
-            atOrigin.style.display = 'none';
-        }, 2000);
+        (0, _helpers.flashMsg)(atOrigin);
         return;
     }
     var imageObj = new Image();
@@ -626,7 +623,6 @@ resistance.addEventListener('click', ()=>{
     <polyline points="15,15 20,5 30,25 40,5 50,25 60,5 70,25 75,15" fill="none" stroke="black" stroke-width="2"/>
     <line x1="75" y1="15" x2="90" y2="15" stroke="black" stroke-width="2"/>
     </svg>
-    
     `;
     (0, _helpers.addCompSVG)(imageObj, resistanceSvg);
     imageObj.onload = function() {
@@ -797,6 +793,7 @@ run.addEventListener('click', ()=>{
  //TODO: Dependent sources
  //TODO: AC
  //FIXME: Remove the isConnected Property and all related validation..
+ //FIXME: Set the text.text before offset in updateTExt()
 ;
 
 },{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
@@ -12163,6 +12160,7 @@ parcelHelpers.export(exports, "nodeCircles", ()=>nodeCircles);
 parcelHelpers.export(exports, "wires", ()=>wires);
 parcelHelpers.export(exports, "nodes", ()=>nodes);
 parcelHelpers.export(exports, "addingWire", ()=>addingWire);
+parcelHelpers.export(exports, "outputNodes", ()=>outputNodes);
 parcelHelpers.export(exports, "setAddingWire", ()=>setAddingWire);
 parcelHelpers.export(exports, "getAddingWire", ()=>getAddingWire);
 //========================================Add Component SVG Function==========================================
@@ -12224,6 +12222,8 @@ parcelHelpers.export(exports, "drawWire", ()=>drawWire);
 parcelHelpers.export(exports, "disableDragging", ()=>disableDragging);
 parcelHelpers.export(exports, "enableDragging", ()=>enableDragging);
 parcelHelpers.export(exports, "genNetList", ()=>genNetList);
+parcelHelpers.export(exports, "drawTable", ()=>drawTable) //========================================Helper Functions End==========================================
+;
 var _classes = require("./classes");
 var _konva = require("konva");
 var _konvaDefault = parcelHelpers.interopDefault(_konva);
@@ -12243,6 +12243,7 @@ let nodeCircles = []; // A list of the drawn circles about each node
 let wires = []; // A list of all the wire generated
 let nodes = []; // All the nodes within the active program
 let addingWire = false;
+let outputNodes = [];
 let uniqueNodes = {};
 let nodeCounter = 1;
 function setAddingWire(value) {
@@ -12255,7 +12256,7 @@ function addCompSVG(image, svg) {
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 function drawGrid(stage, layer, gridSize) {
-    const width = stage.width();
+    const width = stage.width(); //TODO: remove the stage, already defined
     const height = stage.height();
     // Vertical lines
     for(let x = 0; x <= width; x += gridSize){
@@ -12540,7 +12541,7 @@ function initializeComponent(component, image) {
     component.rotation(0);
     component.offsetX(component.width() / 2);
     component.offsetY(component.height() / 2);
-    console.log(node1_index);
+    //console.log(node1_index)
     component.node1 = nodes[node1_index];
     component.node2 = nodes[node2_index];
     nodes[component.node1.right.index].occupied = true;
@@ -12550,7 +12551,7 @@ function initializeComptext(component) {
     const text = new (0, _konvaDefault.default).Text({
         x: component.x(),
         y: component.y() - 40,
-        text: `${component.name} ${component.getValue()} ${component.unit}`,
+        text: `${component.name} ${component.getValue()}${component.unit}`,
         fontSize: 20,
         fontFamily: 'Calibri',
         fill: 'black',
@@ -12641,10 +12642,7 @@ function componentHandler(component, text) {
                         component.horizontal = false;
                         component.setRotationvalue(previousRotation);
                         const norotate = document.getElementById('norotate');
-                        norotate.style.display = 'block';
-                        setTimeout(()=>{
-                            norotate.style.display = 'none';
-                        }, 2000);
+                        flashMsg(norotate);
                     } else {
                         if (!previousOrient) component.position({
                             x: snapToGrid(component.x()) - 15,
@@ -12664,10 +12662,7 @@ function componentHandler(component, text) {
                         component.horizontal = true;
                         component.setRotationvalue(previousRotation);
                         const norotate = document.getElementById('norotate');
-                        norotate.style.display = 'block';
-                        setTimeout(()=>{
-                            norotate.style.display = 'none';
-                        }, 2000);
+                        flashMsg(norotate);
                     } else {
                         if (previousOrient) component.position({
                             x: snapToGrid(component.x()),
@@ -12717,7 +12712,7 @@ function dragendHandler(component, newcoords, currcoords) {
     });
     handleCompNodes(component);
     setOccupied(component);
-    updateText(component, component.text);
+    updateText(component);
 }
 function handleCompNodes(component) {
     const rotation = component.rotation();
@@ -12790,7 +12785,7 @@ function updateText(component) {
             y: component.y()
         });
     }
-    component.text.text(`${component.name} ${component.getValue()} ${component.prefix === " " ? '' : component.prefix}${component.unit}`);
+    component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit}`);
     component.text.hide();
     if (component.shownText) component.text.show();
 }
@@ -13152,39 +13147,22 @@ function genNetList() {
     console.log(iMatrix);
     let nodeVoltages = math.lusolve(gMatrix, iMatrix);
     console.log(nodeVoltages);
-    let nodesText = [];
     let nodeColors = [];
     for(let i = 0; i < nodeVoltages.length - voltageSourceCount; i++){
-        console.log(i);
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
         let curr = nodes[nodeIdx];
+        let currFill = randomColor(nodeColors);
         const node = new (0, _konvaDefault.default).Circle({
             x: curr.position.x,
             y: curr.position.y,
             radius: 4,
-            fill: radnomColor()
+            fill: currFill
         });
         layer.add(node);
-        nodeColors.push(node);
+        nodeColors.push(currFill);
+        outputNodes.push(node);
     }
-    for(let i = 0; i < nodeColors.length; i++){
-        const text = new (0, _konvaDefault.default).Text({
-            x: 700,
-            y: 200 + 50 * i,
-            text: `${formatOutput(nodeVoltages[i])}V`,
-            fontSize: 20,
-            fontFamily: 'Calibri',
-            fill: nodeColors[i].fill(),
-            align: 'center',
-            weight: 'bold',
-            listening: false // Make it non-interactive
-        });
-        text.offsetX(text.width() / 2);
-        text.offsetY(text.height() / 2);
-        // text.x(curr.position.x);
-        // text.y(text.y() + 30)
-        layer.add(text);
-    }
+    drawTable(nodeVoltages, voltageSourceCount, nodeColors);
     layer.batchDraw();
 }
 function getExponent(prefix) {
@@ -13213,13 +13191,18 @@ function getExponent(prefix) {
             throw new Error(`Unknown prefix: ${prefix}`);
     }
 }
-function radnomColor() {
-    // Generate random RGB values in the lower range (0-128) for a dark color
-    const r = Math.floor(Math.random() * 128);
-    const g = Math.floor(Math.random() * 128);
-    const b = Math.floor(Math.random() * 128);
-    // Convert to hexadecimal and return as a color code
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+function randomColor(nodeColors) {
+    const getRandomDarkColor = ()=>{
+        // Generate random RGB values in the range (128-255) for a bright color
+        const r = Math.floor(Math.random() * 128); // 128 to 255
+        const g = Math.floor(Math.random() * 128); // 128 to 255
+        const b = Math.floor(Math.random() * 128); // 128 to 255
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    };
+    let newColor;
+    do newColor = getRandomDarkColor();
+    while (nodeColors.includes(newColor)); // Repeat until a unique color is found
+    return newColor;
 }
 function formatOutput(value) {
     if (Math.abs(Number(value)) >= 1e12) // Teras (T)
@@ -13242,7 +13225,113 @@ function formatOutput(value) {
     return (Number(value) * 1e12).toFixed(3) + ' p';
     else // Too small to format meaningfully
     return '0.000';
-} //========================================Helper Functions End==========================================
+}
+function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
+    const rows = nodeVoltages.length + 1;
+    const cols = 2;
+    const cellWidth = 100;
+    const cellHeight = 40;
+    // Create a group for the table
+    const tableGroup = new (0, _konvaDefault.default).Group({
+        x: 50,
+        y: 50,
+        draggable: true // Make the group draggable
+    });
+    const rect = new (0, _konvaDefault.default).Rect({
+        x: 50,
+        y: 50,
+        width: cellWidth,
+        height: cellHeight,
+        fill: 'lightgray',
+        stroke: 'black',
+        strokeWidth: 1
+    });
+    tableGroup.add(rect);
+    const text = new (0, _konvaDefault.default).Text({
+        x: 60,
+        y: 60,
+        text: 'Node',
+        fontSize: 16,
+        fontFamily: 'Calibri',
+        fill: 'black'
+    });
+    tableGroup.add(text);
+    const rect2 = new (0, _konvaDefault.default).Rect({
+        x: 50 + cellWidth,
+        y: 50,
+        width: cellWidth,
+        height: cellHeight,
+        fill: 'lightgray',
+        stroke: 'black',
+        strokeWidth: 1
+    });
+    tableGroup.add(rect2);
+    const text2 = new (0, _konvaDefault.default).Text({
+        x: 50 + cellWidth + 10,
+        y: 60,
+        text: 'Voltage',
+        fontSize: 16,
+        fontFamily: 'Calibri',
+        fill: 'black'
+    });
+    tableGroup.add(text2);
+    console.log(nodeVoltages.length - voltageSourceCount);
+    for(let i = 0; i < nodeVoltages.length - voltageSourceCount; i++){
+        const node = new (0, _konvaDefault.default).Rect({
+            x: 50,
+            y: (i + 1) * cellHeight + 50,
+            width: cellWidth,
+            height: cellHeight,
+            fill: 'white',
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(node);
+        const nodeName = new (0, _konvaDefault.default).Text({
+            x: 60,
+            y: (i + 1) * cellHeight + 60,
+            text: `N${i + 1}`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: nodeColors[i]
+        });
+        tableGroup.add(nodeName);
+        const nodeVal = new (0, _konvaDefault.default).Rect({
+            x: 50 + cellWidth,
+            y: 50 + (i + 1) * cellHeight,
+            width: cellWidth,
+            height: cellHeight,
+            fill: 'white',
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(nodeVal);
+        const nodeValTxt = new (0, _konvaDefault.default).Text({
+            x: 50 + cellWidth + 10,
+            y: (i + 1) * cellHeight + 60,
+            text: `${formatOutput(nodeVoltages[i])}V`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: 'black'
+        });
+        tableGroup.add(nodeValTxt);
+    }
+    layer.add(tableGroup);
+    stage.on('click', (e)=>{
+        // Get the bounding box of the group
+        const rect = tableGroup.getClientRect();
+        // Get click position
+        const clickX = e.evt.clientX;
+        const clickY = e.evt.clientY;
+        // Check if the click is inside the bounding box
+        const isInsideGroup = clickX >= rect.x && clickX <= rect.x + rect.width && clickY >= rect.y && clickY <= rect.y + rect.height;
+        if (!isInsideGroup) {
+            outputNodes.forEach((node)=>node.remove());
+            tableGroup.remove();
+            outputNodes = [];
+        }
+    });
+}
 
 },{"./classes":"9HPQv","konva":"geBjd","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq","93da4302baae05a3":"fbtFx"}],"9HPQv":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -13279,7 +13368,7 @@ class Component extends (0, _konvaDefault.default).Image {
         this.horizontal = true;
         this.type = '';
         this.value = 1;
-        this.polarity = 'NULL';
+        // this.polarity = 'NULL'
         this.node1Connected = false;
         this.node2Connected = false;
         this.ID = currentId++;
@@ -13321,7 +13410,7 @@ class Component extends (0, _konvaDefault.default).Image {
     }
 }
 class Ground extends Component {
-    static count = 1;
+    //static count = 1;
     constructor(element){
         super(element);
         this.type = 'Ground';
@@ -13330,9 +13419,6 @@ class Ground extends Component {
     }
     getSymbol() {
         return 'GND';
-    }
-    decreaseCount() {
-        Ground.count--;
     }
 }
 class Resistance extends Component {
