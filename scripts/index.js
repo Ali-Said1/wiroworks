@@ -5,9 +5,8 @@ import { Resistance, dcBattery, Switch, Wire, dcCurrentSource, Ground } from './
 
 
 
-stage.add(layer);
 
-drawGrid(stage, layer, GRIDSIZE);
+drawGrid();
 
 // Resistance Logic
 const resistance = document.getElementById('resistance');
@@ -121,10 +120,7 @@ wire.addEventListener('click', () => {
     setAddingWire(true)
     disableDragging();
     const wirealert = document.getElementById('wirealert');
-    wirealert.style.display = 'block'
-    setTimeout(() => {
-        wirealert.style.display = 'none';
-    }, 2000)
+    flashMsg(wirealert);
     drawNodes();
     window.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
@@ -168,7 +164,7 @@ document.body.addEventListener('click', (event) => {
                     } else {
                         setAddingWire(false);
                         enableDragging();
-                        drawWire(stage, clickedNodes);
+                        if (!drawWire(clickedNodes)) alert('Can\'t draw a wire between those nodes');
                         clickedNodes = [];
                     }
                 }
@@ -180,7 +176,7 @@ document.body.addEventListener('click', (event) => {
                         for (let i = 2; i < x; i++) clickedNodes.pop();
                         setAddingWire(false);
                         enableDragging();
-                        drawWire(stage, clickedNodes);
+                        if (!drawWire(clickedNodes)) alert('Can\'t draw a wire between those nodes');
                         clickedNodes = [];
                     }
                 }
@@ -205,4 +201,4 @@ run.addEventListener('click', () => {
 //TODO: Dependent sources
 //TODO: AC
 //FIXME: Remove the isConnected Property and all related validation..
-//FIXME: Set the text.text before offset in updateTExt()
+// TODO: handle return false from drawwire()

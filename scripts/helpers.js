@@ -1,46 +1,56 @@
 import { Ground, Wire } from './classes';
 import Konva from 'konva'
 const math = require('mathjs')
-
-let width = window.innerWidth
-let height = window.innerHeight
-//let addingWire = false;
-
+// Get the initial width and height of the window, used in all the calculations
+const width = window.innerWidth
+const height = window.innerHeight
+// Initialize the stage and layer objects
 export var stage = new Konva.Stage({
     container: 'container',
     width: width,
     height: height
 })
 export let layer = new Konva.Layer();
+stage.add(layer);
+// Define the size of 1 Grid Square (30 * 30)
 export const GRIDSIZE = 30;
-export let components = []; // component != null
+const rownumberofNodes = parseInt(width / GRIDSIZE) // Number of nodes in a row
+// Array of components to index the added components
+export let components = [];
 export let ground = null;
-export let nodeCircles = []; // A list of the drawn circles about each node
-export let wires = []; // A list of all the wire generated
-export let nodes = []; // All the nodes within the active program
-export let addingWire = false;
+export let nodeCircles = []; // A list of the drawn circles about each node, to calrify the nodes for the user
+export let wires = []; // An array of all the wires generated
+export let nodes = []; // All the nodes within the page
+export let addingWire = false; // Used in blocking user interaction while adding wires
 export let outputNodes = [];
 let uniqueNodes = {};
 let nodeCounter = 1;
+
+// Setter for the addingWire variable
 export function setAddingWire(value) {
     addingWire = value;
 }
-
-export function getAddingWire() {
-    return addingWire;
+//========================================Flash Message Function==========================================
+export function flashMsg(msg) {
+    msg.style.display = 'block';
+    setTimeout(() => {
+        msg.style.display = 'none'
+    }, 2000)
 }
 //========================================Add Component SVG Function==========================================
 export function addCompSVG(image, svg) {
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` // Encodes the svg
 }
-
+//========================================Get Node Index Function==========================================
+export function getIndex(x, y) { // helper function to get a node index
+    let currentRow = (y - GRIDSIZE) / GRIDSIZE
+    let nodeNumberinRow = (x - GRIDSIZE) / GRIDSIZE
+    return rownumberofNodes * currentRow + nodeNumberinRow
+}
 //========================================Grid Drawing Function==========================================
-export function drawGrid(stage, layer, gridSize) {
-    const width = stage.width(); //TODO: remove the stage, already defined
-    const height = stage.height();
-
+export function drawGrid() {
     // Vertical lines
-    for (let x = 0; x <= width; x += gridSize) {
+    for (let x = 0; x <= width; x += GRIDSIZE) {
         const line = new Konva.Line({
             points: [x, 0, x, height],
             stroke: 'lightgray',
@@ -51,7 +61,7 @@ export function drawGrid(stage, layer, gridSize) {
     }
 
     // Horizontal lines
-    for (let y = 0; y <= height; y += gridSize) {
+    for (let y = 0; y <= height; y += GRIDSIZE) {
         const line = new Konva.Line({
             points: [0, y, width, y],
             stroke: 'lightgray',
@@ -62,8 +72,8 @@ export function drawGrid(stage, layer, gridSize) {
     }
 
     // Circles at grid intersections
-    for (let y = 0; y <= height; y += gridSize) {
-        for (let x = 0; x <= width; x += gridSize) {
+    for (let y = 0; y <= height; y += GRIDSIZE) {
+        for (let x = 0; x <= width; x += GRIDSIZE) {
             const circle = new Konva.Circle({
                 x: x,
                 y: y,
@@ -72,27 +82,25 @@ export function drawGrid(stage, layer, gridSize) {
                 listening: false,
             });
             layer.add(circle);
-            // Generate Graph
-            if (x > 0 && y > 0) { // TODO: Remove this condition
-                let node = {};
+            // Filling the nodes array with all the nodes in the page
+            if (x > 0 && y > 0) {
 
-                let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
-                let currentRow = (y - GRIDSIZE) / GRIDSIZE
-                node.index = (x - GRIDSIZE) / GRIDSIZE + (currentRow * (rownumberofNodes + 1))
+                let node = {}; // node object with properties: index, position, occupied (for the aStar algorithm) and neighbouring nodes
 
+                node.index = getIndex(x, y);
                 node.occupied = false;
                 node.position = { x: x, y: y };
                 if (x !== GRIDSIZE) {
-                    node.left = { index: (x - 2 * GRIDSIZE) / GRIDSIZE + (currentRow * (rownumberofNodes + 1)) }
+                    node.left = { index: node.index - 1 }
                 }
                 if (y !== GRIDSIZE) {
-                    node.top = { index: (x - GRIDSIZE) / GRIDSIZE + ((currentRow - 1) * (rownumberofNodes + 1)) };
+                    node.top = { index: node.index - rownumberofNodes };
                 }
                 if (x !== width - GRIDSIZE) {
-                    node.right = { index: x / GRIDSIZE + (currentRow * (rownumberofNodes + 1)) }
+                    node.right = { index: node.index + 1 }
                 }
                 if (y !== height - GRIDSIZE) {
-                    node.bottom = { index: (x - GRIDSIZE) / GRIDSIZE + ((currentRow + 1) * (rownumberofNodes + 1)) }
+                    node.bottom = { index: node.index + rownumberofNodes }
                 }
                 nodes.push(node);
             }
@@ -118,23 +126,23 @@ export function addGround() {
   <line x1="24" y1="25" x2="36" y2="25" stroke="black" stroke-width="2"/>
 </svg>`
     addCompSVG(imageObj, groundSvg);
-    imageObj.onload = function () {
-        const width = stage.width();
-        let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
-        let compRow = (60 - GRIDSIZE) / GRIDSIZE
+
+    imageObj.onload = function () { // wait for the image to load
         var groundElement = new Ground({})
+        groundElement.width(GRIDSIZE * 2);
+        groundElement.offsetX(groundElement.width() / 2)
         groundElement.x(snapToGrid(width - 60));
         groundElement.y(60);
         groundElement.image(imageObj);
-        groundElement.width(GRIDSIZE * 2);
         groundElement.draggable(true);
         groundElement.rotation(0);
-        groundElement.offsetX(groundElement.width() / 2)
-        let nodeIdx = parseInt((groundElement.x() + groundElement.offsetX() - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)))
-        groundElement.node = nodes[nodeIdx];
+
+        let nodeIdx = getIndex(groundElement.x(), groundElement.y())
+        groundElement.node = nodes[nodeIdx]; // link the ground's node to one of the nodes in the nodes array
         nodes[groundElement.node.bottom.index].occupied = true;
         layer.add(groundElement)
         ground = groundElement;
+        // Change the cursor to pointer on hover
         groundElement.on('mouseover', () => {
             document.body.style.cursor = 'pointer';
         })
@@ -145,7 +153,7 @@ export function addGround() {
         groundElement.on('dragend', () => {
             let newcoords = [snapToGrid(groundElement.x()), snapToGrid(groundElement.y())];
             if (checkNearby(groundElement, newcoords)) {
-                groundElement.position({ x: currcoords[0], y: currcoords[1] });
+                groundElement.position({ x: currcoords[0], y: currcoords[1] }); // re-place the ground at old coords
                 layer.batchDraw();
             }
             else {
@@ -153,8 +161,7 @@ export function addGround() {
                 currcoords[0] = newcoords[0]
                 currcoords[1] = newcoords[1]
                 groundElement.position({ x: currcoords[0], y: currcoords[1] });
-                let newNodeRow = (groundElement.y() - GRIDSIZE) / GRIDSIZE
-                let newNodeIdx = ((groundElement.x()) - GRIDSIZE) / GRIDSIZE + (newNodeRow * (rownumberofNodes + 1))
+                let newNodeIdx = getIndex(groundElement.x(), groundElement.y());
                 groundElement.node = nodes[newNodeIdx];
                 nodes[groundElement.node.bottom.index].occupied = true;
             }
@@ -163,14 +170,7 @@ export function addGround() {
 }
 //========================================Show Component details Function==========================================
 export function showDetails(component) {
-    const html = `
-    <div id="editProperties">
-        <h2>${component.type}</h2>
-        <label for="componentval">${component.type} Value = </label>
-            <div class="direction">
-                <input type="number" name="componentval" id="componentval" min="0" value=${component.value}>
-                <div class="datalist-container" style="margin-right:20px;">
-                    <input type="text" list="metric-prefixes" id="prefix" value="${component.prefix}">
+    /*                    <input type="text" list="metric-prefixes" class="list" id="prefix" value="${component.prefix}">
                     <datalist id="metric-prefixes">
                         <option value="p">
                         <option value="n">
@@ -182,13 +182,32 @@ export function showDetails(component) {
                         <option value="M">
                         <option value="G">
                         <option value="T">
-                    </datalist>
+                    </datalist> */
+    const html = `
+    <div id="editProperties">
+        <h2>${component.type}</h2>
+        <label for="componentval">${component.type} Value = </label>
+            <div class="direction">
+                <input type="number" name="componentval" id="componentval" min="0" value=${component.value}>
+                <div class="datalist-container" style="margin-right:20px;">
+                    <select name="rotatesel" id="prefix">
+                        <option value="p" ${component.prefix === 'p' ? 'selected' : ''}>p</option>
+                        <option value="n" ${component.prefix === 'n' ? 'selected' : ''}>n</option>
+                        <option value="µ" ${component.prefix === 'µ' ? 'selected' : ''}>µ</option>
+                        <option value="m" ${component.prefix === 'm' ? 'selected' : ''}>m</option>
+                        <option value="c" ${component.prefix === 'c' ? 'selected' : ''}>c</option>
+                        <option value=" " ${component.prefix === ' ' ? 'selected' : ''}>No Prefix</option>
+                        <option value="k" ${component.prefix === 'k' ? 'selected' : ''}>k</option>
+                        <option value="M" ${component.prefix === 'M' ? 'selected' : ''}>M</option>
+                        <option value="G" ${component.prefix === 'G' ? 'selected' : ''}>G</option>
+                        <option value="T" ${component.prefix === 'T' ? 'selected' : ''}>T</option>
+                    </select>
                 </div>
             <span>${component.unit}</span>
         </div>
         <div class="rotation-labels">
             <label for="rotation">Rotation</label>
-            <select name="rotatesel" id="rotation" ${component.isConnected ? 'disabled' : ''}>
+            <select name="rotatesel" id="rotation">
             <option value="0" ${component.rotation() === 0 ? 'selected' : ''}>0</option>
             <option value="90" ${component.rotation() === 90 ? 'selected' : ''}>90</option>
             <option value="180" ${component.rotation() === 180 ? 'selected' : ''}>180</option>
@@ -205,9 +224,7 @@ export function showDetails(component) {
          <button class="mybutton" id="deleteBtn">delete</button>
         <button class="button" id="submitBtn">submit</button>
     </div>
-
         `
-
     const popupDiv = document.createElement('div');
     popupDiv.id = 'popupDiv'
     popupDiv.innerHTML = html;
@@ -215,22 +232,18 @@ export function showDetails(component) {
 }
 //========================================Check Nearby Components Function==========================================
 export function checkNearby(component, newcoords) {
+    // Check if the newcoords are near the boundaries of the webpage
     if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) {
         return true;
     }
+    // Compare the component location to the ground location
     if (component !== ground) {
         let boundGndx = Math.abs(ground.x() - newcoords[0])
-        let boundGndy = Math.abs(ground.y() - newcoords[1])
-        if (component.horizontal) {
-            if (boundGndx <= 90 && boundGndy <= 30) {
-                return true;
-            }
-        }
-        else if (!component.horizontal) {
-            if (boundGndx <= 30 && boundGndy <= 90) {
-                return true;
-            }
-        }
+        let boundGndy = ground.y() - newcoords[1]
+        if (component.horizontal && boundGndx <= 60 && (boundGndy === 0 || boundGndy === -30))
+            return true;
+        else if (!component.horizontal && boundGndx <= 30 && (boundGndy === - 75 || Math.abs(boundGndy) <= 60))
+            return true;
     }
     for (const curr of components) {
         if (curr == null || component.ID == curr.ID) {
@@ -239,26 +252,33 @@ export function checkNearby(component, newcoords) {
         let currx = curr.x();
         let curry = curr.y();
         let boundx = Math.abs(currx - newcoords[0]);
-        let boundy = Math.abs(curry - newcoords[1])
-        if (component.horizontal && curr.horizontal) {
-            if (boundx <= 90 && boundy <= 30) {
-                return true;
-            }
-        }
-        else if (!component.horizontal && !curr.horizontal) {
-            if (boundx <= 30 && boundy <= 90) {
-                return true;
-            }
+        let groundYCheck = curry - newcoords[1];
+        let boundy = Math.abs(groundYCheck);
+        if (component == ground) { // Checking if the current moving element in the ground
+            if (curr.horizontal && boundx <= 60 && (boundy === 0 || groundYCheck === 30)) return true;
+            else if (!curr.horizontal && boundx <= 30 && (groundYCheck === 75 || boundy <= 60)) return true;
         }
         else {
-            if (boundx <= 90 && boundy <= 90) {
-                return true;
+            if (component.horizontal && curr.horizontal) {
+                if (boundx <= 90 && boundy <= 30) {
+                    return true;
+                }
+            }
+            else if (!component.horizontal && !curr.horizontal) {
+                if (boundx <= 30 && boundy <= 90) {
+                    return true;
+                }
+            }
+            else {
+                if (boundx <= 90 && boundy <= 90) {
+                    return true;
+                }
             }
         }
     }
     return false;
 }
-export function checkNearbybyCoords(coords) {
+export function checkNearbybyCoords(coords) { // Used to check for adding components in the components hub only
     for (const curr of components) {
         if (curr == null) {
             continue;
@@ -322,20 +342,17 @@ export function unsetOccupied(component) {
 }
 //========================================Component Initializer Function==========================================
 export function initializeComponent(component, image) {
-    const width = stage.width();
-    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
-    let compRow = (90 - GRIDSIZE) / GRIDSIZE;
-    let node1_index = parseInt((75 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)) + 1)
-    let node2_index = parseInt((165 - GRIDSIZE) / GRIDSIZE + (compRow * (rownumberofNodes)) + 1)
+    component.width(GRIDSIZE * 3);
+    component.height(GRIDSIZE * 3)
+    component.offsetX(component.width() / 2)
+    component.offsetY(component.height() / 2)
     component.x(75);
     component.y(90);
     component.image(image);
-    component.width(GRIDSIZE * 3);
     component.draggable(true);
     component.rotation(0);
-    component.offsetX(component.width() / 2)
-    component.offsetY(component.height() / 2)
-    //console.log(node1_index)
+    let node1_index = getIndex(component.x() - component.width() / 2, component.y());
+    let node2_index = getIndex(component.x() + component.width() / 2, component.y());
     component.node1 = nodes[node1_index]
     component.node2 = nodes[node2_index]
     nodes[component.node1.right.index].occupied = true;
@@ -354,64 +371,59 @@ export function initializeComptext(component) {
         weight: 'bold',
         listening: false // Make it non-interactive
     });
+    // Set the offset of the text to center it
     text.offsetX(text.width() / 2);
     text.offsetY(text.height() / 2);
     text.x(component.x());
     text.y(text.y())
+    return text;
+}
+//========================================Component Handler Function==========================================
+export function componentHandler(component, text) {
+    component.text = text; // setting the text reference in the component data members
+    layer.add(component)
+    components.push(component); // updating the components array
+    layer.add(component.text)
+    layer.draw();
+    // Set the cursor to pointer on hover
     component.on('mouseover', () => {
         document.body.style.cursor = 'pointer';
     })
     component.on('mouseout', () => {
         document.body.style.cursor = 'default';
     })
-    return text;
-}
-//========================================Component Handler Function==========================================
-export function componentHandler(component, text) {
-    component.text = text;
-    layer.add(component)
-    components.push(component);
-    layer.add(component.text)
-    layer.draw();
+    // Array that holds the current coordinates of the component in case of undoing position shift
     let currcoords = [component.x(), component.y()]
     component.on('dragstart', () => {
         component.text.hide();
     });
     component.on('dragend', () => {
         let newcoords = [];
-        if (component.horizontal) {
+        if (component.horizontal) { // Set the newcoords according to the gridsystem and component orientation
             newcoords = [snapToGrid(component.x()) - 15, snapToGrid(component.y())];
         } else {
             newcoords = [snapToGrid(component.x()), snapToGrid(component.y()) - 15];
         }
-        dragendHandler(component, newcoords, currcoords)
-        //component.text.show();
-        layer.batchDraw();
+        dragendHandler(component, newcoords, currcoords);
+        layer.batchDraw(); // update the layer
     });
     component.on('dblclick', () => {
-        if (addingWire) return;
-        showDetails(component);
+        if (addingWire) return; // Disable the interaction while adding wire
+        showDetails(component); // Show the details popup
         let currRotation = component.rotation();
         const rotation = document.getElementsByClassName('rotation');
         rotation.value = currRotation;
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const popupDiv = document.getElementById('popupDiv');
-        document.body.addEventListener('click', (event) => {
-            if (!popupDiv.contains(event.target)) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-        });
-        window.addEventListener('keydown', (event) => {
+        window.addEventListener('keydown', (event) => { // Escape button closes the popup
             if (event.key === 'Escape') {
                 popupDiv.remove();
             }
         })
-        deleteBtn.addEventListener('click', () => {
+        deleteBtn.addEventListener('click', () => { // Delete button removes the component
             popupDiv.remove();
             removeComponent(component);
-            text.remove();
             layer.batchDraw();
         })
 
@@ -419,59 +431,46 @@ export function componentHandler(component, text) {
             const componentval = document.getElementById('componentval');
             const prefix = document.getElementById('prefix');
             const rotation = document.getElementById('rotation');
-            component.setValue(componentval.value);
-            component.setPrefix(prefix.value);
-            if (!component.node1Connected && !component.node2Connected) {
-                let previousOrient = component.horizontal;
-                let previousRotation = component.rotation();
-                component.setRotationvalue(rotation.value);
-                if ((previousRotation == component.rotation()) || (Math.abs(previousRotation - component.rotation()) == 180)) { }
-                else if (component.rotation() === 0 || component.rotation() === 180) {
+            component.setValue(componentval.value); // Set the component value
+            component.setPrefix(prefix.value); // Update the prefix
+            let previousRotation = component.rotation(); // Saving the value of the current rotation
+            component.setRotationvalue(rotation.value); // Updating the rotation
+            if ((previousRotation === component.rotation()) || (Math.abs(previousRotation - component.rotation()) === 180)) { } // Checking if the component is flipped, no validation of component position is needed
+            else if (component.rotation() === 0 || component.rotation() === 180) { // Checking if the component was rotated to be horizontal
+                component.horizontal = true;
+                if (checkNearby(component, [snapToGrid(component.x()) - 15, snapToGrid(component.y())])) { // Checking if the component overlaps
+                    component.horizontal = false;
+                    component.setRotationvalue(previousRotation); // Undoing the rotation
+                    const norotate = document.getElementById('norotate');
+                    flashMsg(norotate)
+                } else {
+                    component.position({ x: snapToGrid(component.x()) - 15, y: snapToGrid(component.y()) })
+                    currcoords = [component.x(), component.y()];
+                }
+            }
+            else { // Same steps but for the case of rotating to be vertical
+                component.horizontal = false;
+                if (checkNearby(component, [snapToGrid(component.x()), snapToGrid(component.y()) - 15])) {
                     component.horizontal = true;
-                    if (checkNearby(component, [snapToGrid(component.x()) - 15, snapToGrid(component.y())])) {
-                        component.horizontal = false;
-                        component.setRotationvalue(previousRotation);
-                        const norotate = document.getElementById('norotate');
-                        flashMsg(norotate)
-                    } else {
-                        if (!previousOrient)
-                            component.position({ x: snapToGrid(component.x()) - 15, y: snapToGrid(component.y()) })
-                        currcoords = [component.x(), component.y()];
-                    }
+                    component.setRotationvalue(previousRotation);
+                    const norotate = document.getElementById('norotate');
+                    flashMsg(norotate)
                 }
                 else {
-                    component.horizontal = false;
-                    if (checkNearby(component, [snapToGrid(component.x()), snapToGrid(component.y()) - 15])) {
-                        component.horizontal = true;
-                        component.setRotationvalue(previousRotation);
-                        const norotate = document.getElementById('norotate');
-                        flashMsg(norotate)
-                    }
-                    else {
-                        if (previousOrient)
-                            component.position({ x: snapToGrid(component.x()), y: snapToGrid(component.y()) - 15 })
-                        currcoords = [component.x(), component.y()];
-                    }
+                    component.position({ x: snapToGrid(component.x()), y: snapToGrid(component.y()) - 15 })
+                    currcoords = [component.x(), component.y()];
                 }
-                updateText(component, text)
-                unsetOccupied(component)
-                handleCompNodes(component)
-                setOccupied(component)
             }
-            else { // TODO: Remove this condition
-                const disconnect = document.getElementById('disconnect');
-                disconnect.style.display = 'block'
-                setTimeout(() => {
-                    disconnect.style.display = 'none';
-                }, 2000)
-            }
+            unsetOccupied(component)  // unsetting the occupied nodes
+            handleCompNodes(component) // Updating the nodes
+            setOccupied(component) // Setting the new occupied nodes (these 3 steps are necessary in case of any type of rotation)
             const shownText = document.getElementById('showtext');
             if (shownText.value == 'true')
                 component.shownText = true;
             else if (shownText.value == 'false')
                 component.shownText = false;
             popupDiv.remove();
-            updateText(component, text)
+            updateText(component, text) // updating the component text after getting all the user input and validating
             layer.batchDraw();
         })
     })
@@ -480,150 +479,144 @@ export function componentHandler(component, text) {
 //========================================Dragend Handler Helper Function==========================================
 export function dragendHandler(component, newcoords, currcoords) {
     if (checkNearby(component, newcoords)) {
-        component.position({ x: currcoords[0], y: currcoords[1] });
-        updateText(component, component.text);
+        component.position({ x: currcoords[0], y: currcoords[1] }); // undo the position shift
+        updateText(component, component.text); // update the component text
         return;
     }
     unsetOccupied(component)
+    // update the currcoords array and the position of the component according to the grid system
     currcoords[0] = newcoords[0]
     currcoords[1] = newcoords[1]
     component.position({ x: currcoords[0], y: currcoords[1] });
-    handleCompNodes(component)
-    setOccupied(component)
-    updateText(component);
+    handleCompNodes(component); // update the component nodes
+    setOccupied(component);
+    updateText(component); // update the component text
 }
 //========================================Component Nodes Handler Function==========================================
-export function handleCompNodes(component) {
+export function handleCompNodes(component) { // Updates the component nodes
     const rotation = component.rotation();
-    const width = stage.width();
-    const height = stage.height();
-    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
     if (rotation === 0) {
-        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE
-        let node1_index = ((component.x() - component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
-        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE
-        let node2_index = ((component.x() + component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+        let node1_index = getIndex(component.x() - component.width() / 2, component.y());
+        let node2_index = getIndex(component.x() + component.width() / 2, component.y());
         component.node1 = nodes[node1_index];
         component.node2 = nodes[node2_index];
-        //component.node1 = [component.x() - component.width() / 2, component.y()]
-        //component.node2 = [component.x() + component.width() / 2, component.y()]
     }
-    else if (rotation == 90) {
-        let node1Row = ((component.y() - component.height() / 2) - GRIDSIZE) / GRIDSIZE
-        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
-        let node2Row = ((component.y() + component.height() / 2) - GRIDSIZE) / GRIDSIZE
-        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+    else if (rotation === 90) {
+        let node1_index = getIndex(component.x(), component.y() - component.height() / 2);
+        let node2_index = getIndex(component.x(), component.y() + component.height() / 2);
         component.node1 = nodes[node1_index];
         component.node2 = nodes[node2_index];
-        // component.node1 = [component.x(), component.y() - component.height() / 2]
-        // component.node2 = [component.x(), component.y() + component.height() / 2]
     }
-    else if (rotation == 180) {
-        let node1Row = (component.y() - GRIDSIZE) / GRIDSIZE
-        let node1_index = ((component.x() + component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
-        let node2Row = (component.y() - GRIDSIZE) / GRIDSIZE
-        let node2_index = ((component.x() - component.width() / 2) - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+    else if (rotation === 180) {
+        let node1_index = getIndex(component.x() + component.width() / 2, component.y());
+        let node2_index = getIndex(component.x() - component.width() / 2, component.y());
         component.node1 = nodes[node1_index];
         component.node2 = nodes[node2_index];
-        //component.node1 = [component.x() + component.width() / 2, component.y()]
-        //component.node2 = [component.x() - component.width() / 2, component.y()]
     }
-    else if (rotation == 270) {
-        let node1Row = ((component.y() + component.height() / 2) - GRIDSIZE) / GRIDSIZE
-        let node1_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
-        let node2Row = ((component.y() - component.height() / 2) - GRIDSIZE) / GRIDSIZE
-        let node2_index = (component.x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+    else if (rotation === 270) {
+        let node1_index = getIndex(component.x(), component.y() + component.height() / 2);
+        let node2_index = getIndex(component.x(), component.y() - component.height() / 2);
         component.node1 = nodes[node1_index];
         component.node2 = nodes[node2_index];
-        // component.node1 = [component.x(), component.y() + component.height() / 2]
-        // component.node2 = [component.x(), component.y() - component.height() / 2]
     }
 }
 //========================================Component Text Update Function==========================================
 export function updateText(component) {
+    component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit}`);
     component.text.offsetX(component.text.width() / 2)
     component.text.offsetY(component.text.height() / 2)
+    component.text.rotation(component.rotation());
     if (component.rotation() === 0) {
-        component.text.rotation(0);
         component.text.position({ x: component.x(), y: component.y() - 40 })
     }
     else if (component.rotation() === 90) {
-        component.text.rotation(90);
         component.text.position({ x: component.x() + 40, y: component.y() })
     }
     else if (component.rotation() === 180) {
-        component.text.rotation(180);
         component.text.position({ x: component.x(), y: component.y() + 40 })
     }
     else if (component.rotation() === 270) {
-        component.text.rotation(270);
         component.text.position({ x: component.x() - 40, y: component.y() })
     }
-    component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit}`);
     component.text.hide();
     if (component.shownText)
         component.text.show();
 }
-//========================================Remove Component Handler functions==========================================
+//========================================Remove Component Handler Function==========================================
 function removeComponent(component) {
     let currNum = 1;
-    components.forEach((currComponent) => {
+    components.forEach((currComponent) => { // Update the components names after deleting the component
         if (currComponent !== null && currComponent.type === component.type && currComponent !== component) {
-            if (currComponent.name !== `${currComponent.getSymbol()}${currNum++}`) {
+            if (currComponent.name !== `${currComponent.getSymbol()}${currNum++}`) { // Check if the name needs to be updated
                 currComponent.name = `${currComponent.getSymbol()}${currNum - 1}`;
-                currComponent.text.text(`${currComponent.name} ${component.getValue()} ${component.prefix}${component.unit}`)
+                currComponent.text.text(`${currComponent.name} ${currComponent.getValue()}${currComponent.prefix === " " ? '' : currComponent.prefix}${currComponent.unit}`);
             }
         }
     })
-    component.decreaseCount();
-    components[component.ID] = null;
+    component.decreaseCount(); // Decrease the static counter in the class
+    components[component.ID] = null; // nullify the component in the components array
+    component.text.remove();
     component.remove();
 }
+//========================================Dragging Toggling Functions==========================================
+export function disableDragging() {
+    components.forEach((comp) => {
+        if (comp === null) return;
+        comp.draggable(false); // Set the draggable attribut to false for all the components
+    })
+    ground.draggable(false); // and the ground
+}
+export function enableDragging() {
+    components.forEach((comp) => {
+        if (comp === null) return;
+        comp.draggable(true) // Set the draggable attribute to true for all the components
+    })
+    ground.draggable(true); // and the ground
+}
 //========================================Draw Nodes Function==========================================
-export function drawNodes() {
+export function drawNodes() { // This function draws clickable nodes for the user (useful for adding wires)
     const groundNode = new Konva.Circle({
         x: ground.node.position.x,
         y: ground.node.position.y,
         radius: 4,
         fill: "#772F1A"
     })
-    nodeCircles.push(groundNode);
+    nodeCircles.push(groundNode); // Adding the ground node-drawn node to the nodeCircles array for looping over all nodes
     components.forEach((currComponent) => {
-        if (currComponent != null) {
-            const node1 = new Konva.Circle({
-                x: currComponent.node1.position.x,
-                y: currComponent.node1.position.y,
-                radius: 4,
-                fill: '#772F1A',
-            });
-            nodeCircles.push(node1);
-            const node2 = new Konva.Circle({
-                x: currComponent.node2.position.x,
-                y: currComponent.node2.position.y,
-                radius: 4,
-                fill: '#772F1A',
-            });
-            nodeCircles.push(node2);
-        }
-        wires.forEach((wire) => {
-            if (wire != null) {
-                wire.gridPoints.forEach((point) => {
-                    let newNode = true;
-                    nodeCircles.forEach((node) => {
-                        if (node.x() == point.position.x && node.y() == point.position.y) newNode = false;
-                    })
-                    if (!newNode) return;
-                    const node = new Konva.Circle({
-                        x: point.position.x,
-                        y: point.position.y,
-                        radius: 4,
-                        fill: '#772F1A'
-                    })
-                    nodeCircles.push(node);
-                });
-            }
-        })
+        if (currComponent == null) return;
+        const node1 = new Konva.Circle({
+            x: currComponent.node1.position.x,
+            y: currComponent.node1.position.y,
+            radius: 4,
+            fill: '#772F1A',
+        });
+        nodeCircles.push(node1); // Adding both the component's nodes to the array
+        const node2 = new Konva.Circle({
+            x: currComponent.node2.position.x,
+            y: currComponent.node2.position.y,
+            radius: 4,
+            fill: '#772F1A',
+        });
+        nodeCircles.push(node2);
     })
+    wires.forEach((wire) => {
+        if (wire == null) return;
+        wire.gridPoints.forEach((point) => {
+            let newNode = true;
+            nodeCircles.forEach((node) => {
+                if (node.x() == point.position.x && node.y() == point.position.y) newNode = false; // checking if the node is added already
+            })
+            if (!newNode) return;
+            const node = new Konva.Circle({
+                x: point.position.x,
+                y: point.position.y,
+                radius: 4,
+                fill: '#772F1A'
+            })
+            nodeCircles.push(node);
+        });
+    })
+    // changing the cursor to pointer when hovering over the nodes
     nodeCircles.forEach((node) => {
         node.on('mouseover', () => {
             document.body.style.cursor = 'pointer';
@@ -631,7 +624,7 @@ export function drawNodes() {
         node.on('mouseout', () => {
             document.body.style.cursor = 'default';
         })
-        node.on('click', () => {
+        node.on('click', () => { // Changing node color to green on click
             node.fill('green')
         })
         layer.add(node)
@@ -639,40 +632,25 @@ export function drawNodes() {
     layer.batchDraw();
 }
 //========================================Remove Nodes Function==========================================
-export function removeNodes() {
+export function removeNodes() { // Removes the drawn nodes and clears the nodeCircles array
     nodeCircles.forEach((node) => {
         node.remove();
     })
     nodeCircles = [];
     layer.batchDraw();
 }
-//========================================Check Connection Nodes Function==========================================
-// export function checkConnectionNodes(clickedNodes) {
-//     let sameComp = false;
-//     components.forEach((component) => {
-//         if (component != null) {
-//             for (let i = 0; i < 2; i++) {
-//                 if (component.node1[0] === clickedNodes[i].x() && component.node1[1] === clickedNodes[i].y()
-//                     && component.node2[0] === clickedNodes[1 - i].x() && component.node2[1] === clickedNodes[1 - i].y()) {
-//                     sameComp = true;
-//                 }
-//             }
-//         }
-//     })
-//     return sameComp;
-// }
 //========================================A* algorithm==========================================
-export function heuristic(startNode, endNode) {
+export function heuristic(startNode, endNode) { // Helper function that calculates the heuristic to goal
     return Math.abs(startNode.x - endNode.x) + Math.abs(startNode.y - endNode.y);
 }
 
-export function reconstructPath(node) {
+export function reconstructPath(node) { // Helper function that constructs the path from the start node to end node
     let path = [];
     while (node) {
         path.push(node);
         node = node.parent;
     }
-    return path.reverse(); // Reverse the path to start-to-goal order
+    return path.reverse(); // Reverse the path to start-to-end order
 }
 
 export function aStar(startNode, endNode) {
@@ -731,32 +709,19 @@ export function aStar(startNode, endNode) {
     // If we exhaust the openSet without finding the goal, return null (no path found)
     return null;
 }
-//========================================Flash Message Function==========================================
-export function flashMsg(msg) {
-    msg.style.display = 'block';
-    setTimeout(() => {
-        msg.style.display = 'none'
-    }, 2000)
-}
 //========================================Draw Wire Function==========================================
-export function drawWire(stage, clickedNodes) {
-    const width = stage.width();
-    const height = stage.height();
-    let rownumberofNodes = parseInt((width - GRIDSIZE) / GRIDSIZE)
-    let node1Row = (clickedNodes[0].y() - GRIDSIZE) / GRIDSIZE
-    let node1_index = (clickedNodes[0].x() - GRIDSIZE) / GRIDSIZE + (node1Row * (rownumberofNodes + 1))
-    let node2Row = (clickedNodes[1].y() - GRIDSIZE) / GRIDSIZE
-    let node2_index = (clickedNodes[1].x() - GRIDSIZE) / GRIDSIZE + (node2Row * (rownumberofNodes + 1))
+export function drawWire(clickedNodes) {
+    let node1_index = getIndex(clickedNodes[0].x(), clickedNodes[0].y());
+    let node2_index = getIndex(clickedNodes[1].x(), clickedNodes[1].y())
     nodeCircles.forEach((node) => {
-        let nodeRow = (node.y() - GRIDSIZE) / GRIDSIZE
-        let nodeIdx = (node.x() - GRIDSIZE) / GRIDSIZE + (nodeRow * (rownumberofNodes + 1))
-        if (nodeIdx != node1_index && nodeIdx != node2_index) nodes[nodeIdx].occupied = true;
+        let nodeIdx = getIndex(node.x(), node.y());
+        if (nodeIdx != node1_index && nodeIdx != node2_index) nodes[nodeIdx].occupied = true; // Set every node that has a wire or a component other than the start and end nodes as occupied
     })
     let wireNodes = aStar(nodes[node1_index], nodes[node2_index]);
     if (!wireNodes) return false;
     let wire = new Wire();
     wire.gridPoints = wireNodes;
-    for (let i = 0; i < wireNodes.length - 1; i++) {
+    for (let i = 0; i < wireNodes.length - 1; i++) { // Draw the wire
         const line = new Konva.Line({
             points: [wireNodes[i].position.x, wireNodes[i].position.y, wireNodes[i + 1].position.x, wireNodes[i + 1].position.y],
             stroke: 'black',
@@ -766,14 +731,13 @@ export function drawWire(stage, clickedNodes) {
         layer.add(line);
         wire.drawnLines.push(line);
     }
-    wires.push(wire);
+    wires.push(wire); // Add the wire to the wires array
     nodeCircles.forEach((node) => {
-        let nodeRow = (node.y() - GRIDSIZE) / GRIDSIZE
-        let nodeIdx = (node.x() - GRIDSIZE) / GRIDSIZE + (nodeRow * (rownumberofNodes + 1))
-        nodes[nodeIdx].occupied = false;
+        let nodeIdx = getIndex(node.x(), node.y());
+        nodes[nodeIdx].occupied = false; // Unoccupy the nodes
     })
     removeNodes();
-    wire.drawnLines.forEach((line) => {
+    wire.drawnLines.forEach((line) => { // Adding event listeners to delete wire on double click on any line of the wire
         line.on('dblclick', () => {
             console.log(wires);
             if (addingWire) return;
@@ -784,24 +748,10 @@ export function drawWire(stage, clickedNodes) {
             console.log(wires);
         })
     })
+    return true;
 }
-//========================================Dragging Toggling Function==========================================
-export function disableDragging() {
-    components.forEach((comp) => {
-        if (comp === null) return;
-        comp.draggable(false)
-    })
-    ground.draggable(false);
-}
-export function enableDragging() {
-    components.forEach((comp) => {
-        if (comp === null) return;
-        comp.draggable(true)
-    })
-    ground.draggable(true);
-}
-//========================================Generate Net list Function==========================================
-function haveCommonNodes(node1, node2) {
+//========================================Update Nodes Function==========================================
+function haveCommonNodes(node1, node2) { // Helper function to avoid repeating nodes
     const keys1 = Object.keys(node1);
     const keys2 = Object.keys(node2);
     const set1 = new Set(keys1);
@@ -814,16 +764,14 @@ function haveCommonNodes(node1, node2) {
     return false;
 }
 
-function updateNodes() {
+function updateNodes() { // Helper function to generate the nodes for the net list
     uniqueNodes = {}
-    tempNodes = {}
     nodeCounter = 1;
-    let tempCounter = 1;
-    wires.forEach((wire) => {
+    wires.forEach((wire) => { // Each wire is a single node
         if (wire == null) return;
         for (let i = 1; i < nodeCounter; i++) {
             for (let j = 0; j < wire.gridPoints.length; j++) {
-                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) {
+                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) { // Check of ftwo wires overlap at some node
                     for (let k = 0; k < wire.gridPoints.length; k++) {
                         uniqueNodes[`N${i}`][`${wire.gridPoints[k].index}`] = true;
                     }
@@ -831,35 +779,31 @@ function updateNodes() {
                 }
             }
         }
-        if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {};
+        if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {}; // Check if the wire is a new node
         for (let i = 0; i < wire.gridPoints.length; i++) {
             uniqueNodes[`N${nodeCounter}`][`${wire.gridPoints[i].index}`] = true;
         }
         nodeCounter++;
     })
     for (let i = 1; i < nodeCounter; i++) {
-        let foundCommon = false;
         for (let j = i + 1; j < nodeCounter; j++) {
-            if (haveCommonNodes(uniqueNodes[`N${i}`], uniqueNodes[`N${j}`])) {
-                foundCommon = true;
-                uniqueNodes[`N${i}`] = { ...uniqueNodes[`N${i}`], ...uniqueNodes[`N${j}`] }
-                uniqueNodes[`N${j}`] = {};
+            if (haveCommonNodes(uniqueNodes[`N${i}`], uniqueNodes[`N${j}`])) { // Check if two nodes have common points
+                uniqueNodes[`N${i}`] = { ...uniqueNodes[`N${i}`], ...uniqueNodes[`N${j}`] } // Make one node that holds both
+                let k = j
+                nodeCounter--;
+                for (; k < nodeCounter; k++) {
+                    uniqueNodes[`N${k}`] = uniqueNodes[`N${k + 1}`] // Update the nodes to avoid redundancy
+                }
+                delete uniqueNodes[`N${k}`]; // Delete the last entry from the uniqueNodes object
             }
         }
-        if (foundCommon) {
-            tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
-        }
-        if (!foundCommon && Object.keys(uniqueNodes[`N${i}`]).length !== 0) {
-            tempNodes[`N${tempCounter++}`] = uniqueNodes[`N${i}`];
-        }
     }
-    nodeCounter = tempCounter;
-    uniqueNodes = tempNodes;
+
     components.forEach((component) => {
         if (component == null) return
         let node1Defined = false;
         let node2Defined = false;
-        for (let i = 1; i < nodeCounter; i++) {
+        for (let i = 1; i < nodeCounter; i++) { // Validate whether the nodes around a component are connected by wires or not
             if (uniqueNodes[`N${i}`][`${component.node1.index}`]) {
                 node1Defined = true;
             }
@@ -867,7 +811,7 @@ function updateNodes() {
                 node2Defined = true;
             }
         }
-        if (!node1Defined) {
+        if (!node1Defined) { // If not define a new node
             uniqueNodes[`N${nodeCounter}`] = {};
             uniqueNodes[`N${nodeCounter}`][`${component.node1.index}`] = true;
             nodeCounter++;
@@ -878,7 +822,7 @@ function updateNodes() {
             nodeCounter++;
         }
     })
-    for (let i = 1; i < nodeCounter; i++) {
+    for (let i = 1; i < nodeCounter; i++) { // Check if a defined node is ground
         if (uniqueNodes[`N${i}`][`${ground.node.index}`]) {
             uniqueNodes['GND'] = uniqueNodes[`N${i}`];
             let j = i
@@ -890,18 +834,17 @@ function updateNodes() {
             break;
         }
     }
-    if (!uniqueNodes['GND']) {
+    if (!uniqueNodes['GND']) { // If ground isn't defined, define it
         uniqueNodes['GND'] = {};
         uniqueNodes['GND'][`${ground.node.index}`] = true;
     }
 }
+//========================================Generate Net list Function==========================================
 export function genNetList() {
     updateNodes();
     let netList = [];
     components.forEach((component) => {
         if (component === null) return;
-        // let out = '';
-        // out += component.getSymbol();
         let node1, node2;
         for (const key of Object.keys(uniqueNodes)) {
             if (uniqueNodes[key][`${component.node1.index}`]) node1 = key;
@@ -909,36 +852,33 @@ export function genNetList() {
         for (const key of Object.keys(uniqueNodes)) {
             if (uniqueNodes[key][`${component.node2.index}`]) node2 = key;
         }
-        // out += component.value;
-        // out += component.prefix === ' ' ? '' : component.prefix;
-        // out += component.unit
-        // console.log(out)
-        let listObj = { type: component.getSymbol(), Node1: node1, Node2: node2, Value: component.value, exponent: getExponent(component.prefix) }
+        let listObj = { name: component.name, type: component.getSymbol(), Node1: node1, Node2: node2, Value: component.value, exponent: getExponent(component.prefix) } // Genereate netlist entries
         netList.push(listObj)
     })
-    console.log(netList)
-    const numberOfNodes = Object.keys(uniqueNodes).length - 1;
+    const numberOfNodes = Object.keys(uniqueNodes).length - 1; // Ground node isn't counted as a node
     let voltageSourceCount = 0;
     let voltageSourceIndeces = [];
+    let voltageSources = [];
     for (let i = 0; i < netList.length; i++) {
         if (netList[i].type === 'Vs') {
             voltageSourceCount++;
             voltageSourceIndeces.push(i);
+            voltageSources.push(netList[i].name);
         };
     }
-    const matrixSize = numberOfNodes + voltageSourceCount;
+    const matrixSize = numberOfNodes + voltageSourceCount; // MNA matrix
     let gMatrix = new Array(matrixSize)
     let iMatrix = new Array(matrixSize);
-    iMatrix.fill(0)
+    iMatrix.fill(0); // Matrices are initialized to zero to update the values later
     for (let i = 0; i < matrixSize; i++) {
         gMatrix[i] = new Array(matrixSize);
         gMatrix[i].fill(0);
     }
     for (let i = 0; i < netList.length; i++) {
         if (netList[i].type === 'R') {
-            let node1 = parseInt(netList[i].Node1.slice(1))
+            let node1 = parseInt(netList[i].Node1.slice(1)) // ignore the 'N' in 'Nxx'
             let node2 = parseInt(netList[i].Node2.slice(1))
-            if (!Number.isNaN(node1)) {
+            if (!Number.isNaN(node1)) { // Check if the node isn't GND
                 gMatrix[node1 - 1][node1 - 1] += 1 / (parseInt(netList[i].Value) * netList[i].exponent);
             }
             if (!Number.isNaN(node2)) {
@@ -965,9 +905,6 @@ export function genNetList() {
         let node1 = parseInt(currentVSource.Node1.slice(1));
         let node2 = parseInt(currentVSource.Node2.slice(1));
         if (!Number.isNaN(node1)) {
-            console.log(node1 - 1)
-            console.log(numberOfNodes + i)
-            console.log(gMatrix)
             gMatrix[node1 - 1][numberOfNodes + i] += 1;
             gMatrix[numberOfNodes + i][node1 - 1] += 1;
         }
@@ -977,17 +914,12 @@ export function genNetList() {
         }
         iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
     }
-    for (let i = 0; i < numberOfNodes; i++) {
-        console.log(gMatrix[i])
-    }
-    console.log(iMatrix)
-    let nodeVoltages = math.lusolve(gMatrix, iMatrix);
-    console.log(nodeVoltages)
+    let outputValues = math.lusolve(gMatrix, iMatrix);
     let nodeColors = [];
-    for (let i = 0; i < nodeVoltages.length - voltageSourceCount; i++) {
+    for (let i = 0; i < outputValues.length - voltageSourceCount; i++) {
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
         let curr = nodes[nodeIdx]
-        let currFill = randomColor(nodeColors);
+        let currFill = randomColor(nodeColors); // Add Circles with random generated colors on the circuit clarifying the output nodes
         const node = new Konva.Circle({
             x: curr.position.x,
             y: curr.position.y,
@@ -998,9 +930,10 @@ export function genNetList() {
         nodeColors.push(currFill);
         outputNodes.push(node);
     }
-    drawTable(nodeVoltages, voltageSourceCount, nodeColors)
+    drawTable(outputValues, voltageSources, nodeColors)
     layer.batchDraw()
 }
+//========================================Get Exponent Function==========================================
 function getExponent(prefix) {
     switch (prefix) {
         case 'p': // pico
@@ -1027,6 +960,7 @@ function getExponent(prefix) {
             throw new Error(`Unknown prefix: ${prefix}`);
     }
 }
+//========================================Generate Random unique Color for nodes Function==========================================
 function randomColor(nodeColors) {
     const getRandomDarkColor = () => {
         // Generate random RGB values in the range (128-255) for a bright color
@@ -1045,6 +979,7 @@ function randomColor(nodeColors) {
 
     return newColor;
 }
+//========================================Format Output Function==========================================
 function formatOutput(value) {
     if (Math.abs(Number(value)) >= 1e12) {
         // Teras (T)
@@ -1078,12 +1013,13 @@ function formatOutput(value) {
         return '0.000';
     }
 }
-export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
-    const rows = nodeVoltages.length + 1;
-    const cols = 2;
-    const cellWidth = 100;
+//========================================Draw Table Function==========================================
+export function drawTable(outputValues, voltageSources, nodeColors) {
+    const firstColcellWidth = 150;
+    const SecondColcellWidth = 100;
     const cellHeight = 40;
-
+    console.log(voltageSources)
+    const voltageSourceCount = voltageSources.length;
     // Create a group for the table
     const tableGroup = new Konva.Group({
         x: 50,
@@ -1094,7 +1030,7 @@ export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
     const rect = new Konva.Rect({
         x: 50,
         y: 50,
-        width: cellWidth,
+        width: firstColcellWidth,
         height: cellHeight,
         fill: 'lightgray',
         stroke: 'black',
@@ -1104,16 +1040,16 @@ export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
     const text = new Konva.Text({
         x: 50 + 10, // padding
         y: 50 + 10, // padding
-        text: 'Node',
+        text: 'Circuit Parameters',
         fontSize: 16,
         fontFamily: 'Calibri',
         fill: 'black'
     });
     tableGroup.add(text);
     const rect2 = new Konva.Rect({
-        x: 50 + cellWidth,
+        x: 50 + firstColcellWidth,
         y: 50,
-        width: cellWidth,
+        width: SecondColcellWidth,
         height: cellHeight,
         fill: 'lightgray',
         stroke: 'black',
@@ -1121,22 +1057,21 @@ export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
     });
     tableGroup.add(rect2);
     const text2 = new Konva.Text({
-        x: 50 + cellWidth + 10, // padding
+        x: 50 + firstColcellWidth + 10, // padding
         y: 50 + 10, // padding
-        text: 'Voltage',
+        text: 'Value',
         fontSize: 16,
         fontFamily: 'Calibri',
         fill: 'black'
     });
     tableGroup.add(text2);
-    console.log(nodeVoltages.length - voltageSourceCount)
-    for (let i = 0; i < nodeVoltages.length - voltageSourceCount; i++) {
+    for (let i = 0; i < outputValues.length - voltageSourceCount; i++) { // Add the node Voltages to the table
         const node = new Konva.Rect({
             x: 50,
             y: (i + 1) * cellHeight + 50,
-            width: cellWidth,
+            width: firstColcellWidth,
             height: cellHeight,
-            fill: 'white', // Header row color
+            fill: 'white',
             stroke: 'black',
             strokeWidth: 1
         });
@@ -1144,16 +1079,16 @@ export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
         const nodeName = new Konva.Text({
             x: 50 + 10, // padding
             y: (i + 1) * cellHeight + 60, // padding
-            text: `N${i + 1}`,
+            text: `V${i + 1}`,
             fontSize: 16,
             fontFamily: 'Calibri',
-            fill: nodeColors[i]
+            fill: nodeColors[i] // Colored the same as the corresponding node on the circuit
         });
         tableGroup.add(nodeName);
         const nodeVal = new Konva.Rect({
-            x: 50 + cellWidth,
+            x: 50 + firstColcellWidth,
             y: 50 + (i + 1) * cellHeight,
-            width: cellWidth,
+            width: SecondColcellWidth,
             height: cellHeight,
             fill: 'white', // Header row color
             stroke: 'black',
@@ -1161,16 +1096,55 @@ export function drawTable(nodeVoltages, voltageSourceCount, nodeColors) {
         });
         tableGroup.add(nodeVal);
         const nodeValTxt = new Konva.Text({
-            x: 50 + cellWidth + 10, // padding
+            x: 50 + firstColcellWidth + 10, // padding
             y: (i + 1) * cellHeight + 60, // padding
-            text: `${formatOutput(nodeVoltages[i])}V`,
+            text: `${formatOutput(outputValues[i])}V`,
             fontSize: 16,
             fontFamily: 'Calibri',
             fill: 'black'
         });
         tableGroup.add(nodeValTxt);
     }
-
+    for (let i = outputValues.length - voltageSourceCount; i < outputValues.length; i++) { // Add the currents through the voltage sources
+        const branch = new Konva.Rect({
+            x: 50,
+            y: (i + 1) * cellHeight + 50,
+            width: firstColcellWidth,
+            height: cellHeight,
+            fill: 'white',
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(branch);
+        const branchName = new Konva.Text({
+            x: 50 + 10, // padding
+            y: (i + 1) * cellHeight + 60, // padding
+            text: `I through ${voltageSources[i - (outputValues.length - voltageSourceCount)]}`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: 'black' // Colored the same as the corresponding node on the circuit
+        });
+        tableGroup.add(branchName);
+        const currentVal = new Konva.Rect({
+            x: 50 + firstColcellWidth,
+            y: 50 + (i + 1) * cellHeight,
+            width: SecondColcellWidth,
+            height: cellHeight,
+            fill: 'white', // Header row color
+            stroke: 'black',
+            strokeWidth: 1
+        });
+        tableGroup.add(currentVal);
+        const current = new Konva.Text({
+            x: 50 + firstColcellWidth + 10, // padding
+            y: (i + 1) * cellHeight + 60, // padding
+            text: `${formatOutput(outputValues[i])}A`,
+            fontSize: 16,
+            fontFamily: 'Calibri',
+            fill: 'black'
+        });
+        tableGroup.add(current);
+    }
     layer.add(tableGroup);
     stage.on('click', (e) => {
         // Get the bounding box of the group

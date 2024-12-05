@@ -1,6 +1,6 @@
 import Konva from "konva";
 
-let currentId = -1;
+let currentId = -1; // Starts from -1 so the ground doesn't count
 let wireID = 0;
 
 //==============================================Base Component Class=============================================
@@ -8,14 +8,11 @@ class Component extends Konva.Image {
     constructor(element) {
         super(element);
         this.name = '';
-        this.node1 = [this.x(), this.y() + this.height() / 2];
-        this.node2 = [this.x() + this.width(), this.y() + this.height() / 2];
+        this.node1 = null;
+        this.node2 = null;
         this.horizontal = true;
         this.type = ''
         this.value = 1;
-        // this.polarity = 'NULL'
-        this.node1Connected = false;
-        this.node2Connected = false;
         this.ID = currentId++;
         this.prefix = ' '
         this.shownText = true
@@ -114,24 +111,6 @@ export class dcCurrentSource extends Component {
         dcCurrentSource.count--;
     }
 }
-//===============================================Switch Component Class=============================================
-export class Switch extends Component {
-    static count = 1;
-    constructor(element) {
-        super(element)
-        this.state = 'on';
-        this.type = 'Switch';
-    }
-
-
-    toggle() {
-        this.state = (this.state === 'off') ? 'on' : 'off';
-    }
-
-    getState() {
-        return this.state;
-    }
-}
 //===============================================Wire Component Class=============================================
 export class Wire {
     constructor() {
@@ -139,6 +118,23 @@ export class Wire {
         this.type = 'Wire';
         this.gridPoints = [];
         this.drawnLines = [];
-        this.connectedComponents = [];
     }
 }
+//===============================================Switch Component Class=============================================
+// export class Switch extends Component {
+//     static count = 1;
+//     constructor(element) {
+//         super(element)
+//         this.state = 'on';
+//         this.type = 'Switch';
+//     }
+
+
+//     toggle() {
+//         this.state = (this.state === 'off') ? 'on' : 'off';
+//     }
+
+//     getState() {
+//         return this.state;
+//     }
+// }
