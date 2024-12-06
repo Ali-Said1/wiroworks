@@ -26,8 +26,8 @@ class Component extends Konva.Image {
         return this.node2;
     }
     setValue(val) {
-        if (Number.isFinite(parseInt(val)) && val > 0) {
-            this.value = parseInt(val);
+        if (Number.isFinite(parseFloat(val)) && val > 0) {
+            this.value = parseFloat(val);
         }
     }
     setPrefix(val) {
@@ -39,7 +39,7 @@ class Component extends Konva.Image {
         }
     }
     setRotationvalue(val) {
-        if (Number.isFinite(parseInt(val)) && (parseInt(val)) == 0 || (parseInt(val)) == 90 || (parseInt(val)) == 180 || (parseInt(val)) == 270) {
+        if (Number.isFinite(parseInt(val)) && ((parseInt(val) == 0) || (parseInt(val) == 90) || (parseInt(val) == 180) || (parseInt(val) == 270))) {
             this.rotation(parseInt(val));
         }
     }
@@ -49,7 +49,6 @@ class Component extends Konva.Image {
 }
 //==============================================Ground Component Class=============================================
 export class Ground extends Component {
-    //static count = 1;
     constructor(element) {
         super(element);
         this.type = 'Ground'
@@ -59,9 +58,6 @@ export class Ground extends Component {
     getSymbol() {
         return 'GND';
     }
-    // decreaseCount() {
-    //     Ground.count--;
-    // }
 }
 //==============================================Resistance Component Class=============================================
 export class Resistance extends Component {

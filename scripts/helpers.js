@@ -168,6 +168,79 @@ export function addGround() {
         })
     }
 }
+//========================================Check Nearby Components Function==========================================
+export function checkNearby(component, newcoords) {
+    // Check if the newcoords are near the boundaries of the webpage
+    if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) {
+        return true;
+    }
+    // Compare the component location to the ground location
+    if (component !== ground) {
+        let boundGndx = Math.abs(ground.x() - newcoords[0])
+        let boundGndy = ground.y() - newcoords[1]
+        if (component.horizontal && boundGndx <= 60 && (boundGndy === 0 || boundGndy === -30))
+            return true;
+        else if (!component.horizontal && boundGndx <= 30 && (boundGndy === - 75 || Math.abs(boundGndy) <= 60))
+            return true;
+    }
+    for (const curr of components) {
+        if (curr == null || component.ID == curr.ID) {
+            continue;
+        }
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - newcoords[0]);
+        let groundYCheck = curry - newcoords[1];
+        let boundy = Math.abs(groundYCheck);
+        if (component == ground) { // Checking if the current moving element is the ground
+            if (curr.horizontal && boundx <= 60 && (boundy === 0 || groundYCheck === 30)) return true;
+            else if (!curr.horizontal && boundx <= 30 && (groundYCheck === 75 || boundy <= 60)) return true;
+        }
+        else {
+            if (component.horizontal && curr.horizontal) {
+                if (boundx <= 90 && boundy <= 30) {
+                    return true;
+                }
+            }
+            else if (!component.horizontal && !curr.horizontal) {
+                if (boundx <= 30 && boundy <= 90) {
+                    return true;
+                }
+            }
+            else {
+                if (boundx <= 90 && boundy <= 90) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+export function checkNearbybyCoords(coords) { // Used to check for adding components in the components hub only
+    for (const curr of components) {
+        if (curr == null) {
+            continue;
+        }
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - coords[0]);
+        let boundy = Math.abs(curry - coords[1])
+        if (curr.horizontal) {
+            if (boundx <= 90 && boundy <= 30) {
+                return true;
+            }
+        } else {
+            if (boundx <= 90 && boundy <= 90) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+//========================================Snap Components to Grid Function==========================================
+export function snapToGrid(value) {
+    return Math.round(value / GRIDSIZE) * GRIDSIZE;
+}
 //========================================Show Component details Function==========================================
 export function showDetails(component) {
     /*                    <input type="text" list="metric-prefixes" class="list" id="prefix" value="${component.prefix}">
@@ -230,79 +303,6 @@ export function showDetails(component) {
     popupDiv.innerHTML = html;
     document.body.appendChild(popupDiv);
 }
-//========================================Check Nearby Components Function==========================================
-export function checkNearby(component, newcoords) {
-    // Check if the newcoords are near the boundaries of the webpage
-    if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) {
-        return true;
-    }
-    // Compare the component location to the ground location
-    if (component !== ground) {
-        let boundGndx = Math.abs(ground.x() - newcoords[0])
-        let boundGndy = ground.y() - newcoords[1]
-        if (component.horizontal && boundGndx <= 60 && (boundGndy === 0 || boundGndy === -30))
-            return true;
-        else if (!component.horizontal && boundGndx <= 30 && (boundGndy === - 75 || Math.abs(boundGndy) <= 60))
-            return true;
-    }
-    for (const curr of components) {
-        if (curr == null || component.ID == curr.ID) {
-            continue;
-        }
-        let currx = curr.x();
-        let curry = curr.y();
-        let boundx = Math.abs(currx - newcoords[0]);
-        let groundYCheck = curry - newcoords[1];
-        let boundy = Math.abs(groundYCheck);
-        if (component == ground) { // Checking if the current moving element in the ground
-            if (curr.horizontal && boundx <= 60 && (boundy === 0 || groundYCheck === 30)) return true;
-            else if (!curr.horizontal && boundx <= 30 && (groundYCheck === 75 || boundy <= 60)) return true;
-        }
-        else {
-            if (component.horizontal && curr.horizontal) {
-                if (boundx <= 90 && boundy <= 30) {
-                    return true;
-                }
-            }
-            else if (!component.horizontal && !curr.horizontal) {
-                if (boundx <= 30 && boundy <= 90) {
-                    return true;
-                }
-            }
-            else {
-                if (boundx <= 90 && boundy <= 90) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-export function checkNearbybyCoords(coords) { // Used to check for adding components in the components hub only
-    for (const curr of components) {
-        if (curr == null) {
-            continue;
-        }
-        let currx = curr.x();
-        let curry = curr.y();
-        let boundx = Math.abs(currx - coords[0]);
-        let boundy = Math.abs(curry - coords[1])
-        if (curr.horizontal) {
-            if (boundx <= 90 && boundy <= 30) {
-                return true;
-            }
-        } else {
-            if (boundx <= 90 && boundy <= 90) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-//========================================Snap Components to Grid Function==========================================
-export function snapToGrid(value) {
-    return Math.round(value / GRIDSIZE) * GRIDSIZE;
-}
 //========================================Set Occupied Nodes Function==========================================
 export function setOccupied(component) {
     if (component.rotation() === 0) {
@@ -355,8 +355,7 @@ export function initializeComponent(component, image) {
     let node2_index = getIndex(component.x() + component.width() / 2, component.y());
     component.node1 = nodes[node1_index]
     component.node2 = nodes[node2_index]
-    nodes[component.node1.right.index].occupied = true;
-    nodes[nodes[component.node1.right.index].right.index].occupied = true;
+    setOccupied(component);
 }
 //========================================Component Text Initialzier Function==========================================
 export function initializeComptext(component) {
@@ -694,8 +693,8 @@ export function aStar(startNode, endNode) {
             // If the neighbor is not in openSet, add it
             if (!openSet.includes(neighbor)) {
                 openSet.push(neighbor);
-            } else if (tentativeG >= neighbor.g) { // tentativeg is one step + the currentg, by default tentativeG is Infinity, if it was set during exploring some path, it will have a comparable value
-                return; // If this path is not better, skip it
+            } else if (tentativeG >= neighbor.g) {
+                return; // If the new path is not better (or worse), avoid going backward toward the start node
             }
 
             // Update the neighbor's g, h, f values and set its parent
@@ -745,7 +744,6 @@ export function drawWire(clickedNodes) {
                 line.remove();
             })
             wires[wire.ID] = null;
-            console.log(wires);
         })
     })
     return true;
@@ -771,7 +769,7 @@ function updateNodes() { // Helper function to generate the nodes for the net li
         if (wire == null) return;
         for (let i = 1; i < nodeCounter; i++) {
             for (let j = 0; j < wire.gridPoints.length; j++) {
-                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) { // Check of ftwo wires overlap at some node
+                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) { // Check if two wires overlap at some node
                     for (let k = 0; k < wire.gridPoints.length; k++) {
                         uniqueNodes[`N${i}`][`${wire.gridPoints[k].index}`] = true;
                     }
@@ -914,7 +912,14 @@ export function genNetList() {
         }
         iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
     }
-    let outputValues = math.lusolve(gMatrix, iMatrix);
+    let outputValues;
+    try {
+        outputValues = math.lusolve(gMatrix, iMatrix);
+    } catch (error) {
+        alert("current circuit can't be solved");
+        return;
+    }
+
     let nodeColors = [];
     for (let i = 0; i < outputValues.length - voltageSourceCount; i++) {
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
@@ -963,10 +968,10 @@ function getExponent(prefix) {
 //========================================Generate Random unique Color for nodes Function==========================================
 function randomColor(nodeColors) {
     const getRandomDarkColor = () => {
-        // Generate random RGB values in the range (128-255) for a bright color
-        const r = Math.floor(Math.random() * 128); // 128 to 255
-        const g = Math.floor(Math.random() * 128); // 128 to 255
-        const b = Math.floor(Math.random() * 128); // 128 to 255
+        // Generate random RGB values in the range (0-128) for a dark color
+        const r = Math.floor(Math.random() * 128); // 0 to 128
+        const g = Math.floor(Math.random() * 128); // 0 to 128
+        const b = Math.floor(Math.random() * 128); // 0 to 128
 
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     };

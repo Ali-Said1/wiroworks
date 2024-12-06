@@ -602,6 +602,16 @@ var _konvaDefault = parcelHelpers.interopDefault(_konva);
 var _helpers = require("./helpers");
 var _classes = require("./classes");
 (0, _helpers.drawGrid)();
+const componentsHub = new (0, _konvaDefault.default).Text({
+    x: 10,
+    y: 10,
+    text: 'Components Hub',
+    fontSize: 20,
+    fontFamily: 'Arial',
+    fill: 'black'
+});
+// Add the Text to the Layer
+(0, _helpers.layer).add(componentsHub);
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', ()=>{
@@ -750,26 +760,14 @@ document.body.addEventListener('click', (event)=>{
                     if (clickedNodes.find((cnode)=>cnode === node)) (0, _helpers.flashMsg)(differentnode);
                     else clickedNodes.push(node);
                 }
-                console.log(clickedNodes.length);
-                console.log(clickedNodes);
+                clickedNodes = [
+                    ...new Set(clickedNodes)
+                ];
                 if (clickedNodes.length === 2) {
-                    if (clickedNodes[0].x() === clickedNodes[1].x() && clickedNodes[0].y() === clickedNodes[1].y()) clickedNodes.pop();
-                    else {
-                        (0, _helpers.setAddingWire)(false);
-                        (0, _helpers.enableDragging)();
-                        if (!(0, _helpers.drawWire)(clickedNodes)) alert('Can\'t draw a wire between those nodes');
-                        clickedNodes = [];
-                    }
-                } else if (clickedNodes.length > 2) {
-                    let x = clickedNodes.length;
-                    if (clickedNodes[0] == clickedNodes[1]) for(let i = 1; i < x; i++)clickedNodes.pop();
-                    else {
-                        for(let i = 2; i < x; i++)clickedNodes.pop();
-                        (0, _helpers.setAddingWire)(false);
-                        (0, _helpers.enableDragging)();
-                        if (!(0, _helpers.drawWire)(clickedNodes)) alert('Can\'t draw a wire between those nodes');
-                        clickedNodes = [];
-                    }
+                    (0, _helpers.setAddingWire)(false);
+                    (0, _helpers.enableDragging)();
+                    if (!(0, _helpers.drawWire)(clickedNodes)) alert('Can\'t draw a wire between those nodes');
+                    clickedNodes = [];
                 }
             }
         });
@@ -780,16 +778,9 @@ run.addEventListener('click', ()=>{
     (0, _helpers.genNetList)();
 }) // =============================================================================================================
  // =============================================================================================================
- //TODO: Prettier the output ....
- //TODO: calculations create a table for the output with all branch currents and node values
- //TODO: the solved array has the current through the voltage source....
- //FIXME: node with more than one node clicked causes error ... idk
- //TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
  //TODO: modified nodal analysis
  //TODO: Dependent sources
  //TODO: AC
- //FIXME: Remove the isConnected Property and all related validation..
- // TODO: handle return false from drawwire()
 ;
 
 },{"konva":"geBjd","./helpers":"zhEXG","./classes":"9HPQv","@parcel/transformer-js/src/esmodule-helpers.js":"9LEjq"}],"geBjd":[function(require,module,exports,__globalThis) {
@@ -12169,13 +12160,13 @@ parcelHelpers.export(exports, "getIndex", ()=>getIndex);
 parcelHelpers.export(exports, "drawGrid", ()=>drawGrid);
 //========================================Add Ground Function==========================================
 parcelHelpers.export(exports, "addGround", ()=>addGround);
-//========================================Show Component details Function==========================================
-parcelHelpers.export(exports, "showDetails", ()=>showDetails);
 //========================================Check Nearby Components Function==========================================
 parcelHelpers.export(exports, "checkNearby", ()=>checkNearby);
 parcelHelpers.export(exports, "checkNearbybyCoords", ()=>checkNearbybyCoords);
 //========================================Snap Components to Grid Function==========================================
 parcelHelpers.export(exports, "snapToGrid", ()=>snapToGrid);
+//========================================Show Component details Function==========================================
+parcelHelpers.export(exports, "showDetails", ()=>showDetails);
 //========================================Set Occupied Nodes Function==========================================
 parcelHelpers.export(exports, "setOccupied", ()=>setOccupied);
 parcelHelpers.export(exports, "unsetOccupied", ()=>unsetOccupied);
@@ -12387,6 +12378,56 @@ function addGround() {
         });
     };
 }
+function checkNearby(component, newcoords) {
+    // Check if the newcoords are near the boundaries of the webpage
+    if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) return true;
+    // Compare the component location to the ground location
+    if (component !== ground) {
+        let boundGndx = Math.abs(ground.x() - newcoords[0]);
+        let boundGndy = ground.y() - newcoords[1];
+        if (component.horizontal && boundGndx <= 60 && (boundGndy === 0 || boundGndy === -30)) return true;
+        else if (!component.horizontal && boundGndx <= 30 && (boundGndy === -75 || Math.abs(boundGndy) <= 60)) return true;
+    }
+    for (const curr of components){
+        if (curr == null || component.ID == curr.ID) continue;
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - newcoords[0]);
+        let groundYCheck = curry - newcoords[1];
+        let boundy = Math.abs(groundYCheck);
+        if (component == ground) {
+            if (curr.horizontal && boundx <= 60 && (boundy === 0 || groundYCheck === 30)) return true;
+            else if (!curr.horizontal && boundx <= 30 && (groundYCheck === 75 || boundy <= 60)) return true;
+        } else {
+            if (component.horizontal && curr.horizontal) {
+                if (boundx <= 90 && boundy <= 30) return true;
+            } else if (!component.horizontal && !curr.horizontal) {
+                if (boundx <= 30 && boundy <= 90) return true;
+            } else {
+                if (boundx <= 90 && boundy <= 90) return true;
+            }
+        }
+    }
+    return false;
+}
+function checkNearbybyCoords(coords) {
+    for (const curr of components){
+        if (curr == null) continue;
+        let currx = curr.x();
+        let curry = curr.y();
+        let boundx = Math.abs(currx - coords[0]);
+        let boundy = Math.abs(curry - coords[1]);
+        if (curr.horizontal) {
+            if (boundx <= 90 && boundy <= 30) return true;
+        } else {
+            if (boundx <= 90 && boundy <= 90) return true;
+        }
+    }
+    return false;
+}
+function snapToGrid(value) {
+    return Math.round(value / GRIDSIZE) * GRIDSIZE;
+}
 function showDetails(component) {
     /*                    <input type="text" list="metric-prefixes" class="list" id="prefix" value="${component.prefix}">
                     <datalist id="metric-prefixes">
@@ -12447,56 +12488,6 @@ function showDetails(component) {
     popupDiv.innerHTML = html;
     document.body.appendChild(popupDiv);
 }
-function checkNearby(component, newcoords) {
-    // Check if the newcoords are near the boundaries of the webpage
-    if (newcoords[0] < 60 || Math.abs(width - newcoords[0]) < 60 || newcoords[1] < 60 || Math.abs(height - newcoords[1]) < 60) return true;
-    // Compare the component location to the ground location
-    if (component !== ground) {
-        let boundGndx = Math.abs(ground.x() - newcoords[0]);
-        let boundGndy = ground.y() - newcoords[1];
-        if (component.horizontal && boundGndx <= 60 && (boundGndy === 0 || boundGndy === -30)) return true;
-        else if (!component.horizontal && boundGndx <= 30 && (boundGndy === -75 || Math.abs(boundGndy) <= 60)) return true;
-    }
-    for (const curr of components){
-        if (curr == null || component.ID == curr.ID) continue;
-        let currx = curr.x();
-        let curry = curr.y();
-        let boundx = Math.abs(currx - newcoords[0]);
-        let groundYCheck = curry - newcoords[1];
-        let boundy = Math.abs(groundYCheck);
-        if (component == ground) {
-            if (curr.horizontal && boundx <= 60 && (boundy === 0 || groundYCheck === 30)) return true;
-            else if (!curr.horizontal && boundx <= 30 && (groundYCheck === 75 || boundy <= 60)) return true;
-        } else {
-            if (component.horizontal && curr.horizontal) {
-                if (boundx <= 90 && boundy <= 30) return true;
-            } else if (!component.horizontal && !curr.horizontal) {
-                if (boundx <= 30 && boundy <= 90) return true;
-            } else {
-                if (boundx <= 90 && boundy <= 90) return true;
-            }
-        }
-    }
-    return false;
-}
-function checkNearbybyCoords(coords) {
-    for (const curr of components){
-        if (curr == null) continue;
-        let currx = curr.x();
-        let curry = curr.y();
-        let boundx = Math.abs(currx - coords[0]);
-        let boundy = Math.abs(curry - coords[1]);
-        if (curr.horizontal) {
-            if (boundx <= 90 && boundy <= 30) return true;
-        } else {
-            if (boundx <= 90 && boundy <= 90) return true;
-        }
-    }
-    return false;
-}
-function snapToGrid(value) {
-    return Math.round(value / GRIDSIZE) * GRIDSIZE;
-}
 function setOccupied(component) {
     if (component.rotation() === 0) {
         nodes[component.node1.right.index].occupied = true;
@@ -12547,8 +12538,7 @@ function initializeComponent(component, image) {
     let node2_index = getIndex(component.x() + component.width() / 2, component.y());
     component.node1 = nodes[node1_index];
     component.node2 = nodes[node2_index];
-    nodes[component.node1.right.index].occupied = true;
-    nodes[nodes[component.node1.right.index].right.index].occupied = true;
+    setOccupied(component);
 }
 function initializeComptext(component) {
     const text = new (0, _konvaDefault.default).Text({
@@ -12897,7 +12887,7 @@ function aStar(startNode, endNode) {
             let tentativeG = currentNode.g + 1; // Assuming uniform cost for each step
             // If the neighbor is not in openSet, add it
             if (!openSet.includes(neighbor)) openSet.push(neighbor);
-            else if (tentativeG >= neighbor.g) return; // If this path is not better, skip it
+            else if (tentativeG >= neighbor.g) return; // If the new path is not better (or worse), avoid going backward toward the start node
             // Update the neighbor's g, h, f values and set its parent
             neighbor.g = tentativeG;
             neighbor.h = heuristic(neighbor.position, endNode.position);
@@ -12948,7 +12938,6 @@ function drawWire(clickedNodes) {
                 line.remove();
             });
             wires[wire.ID] = null;
-            console.log(wires);
         });
     });
     return true;
@@ -13092,7 +13081,13 @@ function genNetList() {
         }
         iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
     }
-    let outputValues = math.lusolve(gMatrix, iMatrix);
+    let outputValues;
+    try {
+        outputValues = math.lusolve(gMatrix, iMatrix);
+    } catch (error) {
+        alert("current circuit can't be solved");
+        return;
+    }
     let nodeColors = [];
     for(let i = 0; i < outputValues.length - voltageSourceCount; i++){
         let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
@@ -13141,10 +13136,10 @@ function getExponent(prefix) {
 //========================================Generate Random unique Color for nodes Function==========================================
 function randomColor(nodeColors) {
     const getRandomDarkColor = ()=>{
-        // Generate random RGB values in the range (128-255) for a bright color
-        const r = Math.floor(Math.random() * 128); // 128 to 255
-        const g = Math.floor(Math.random() * 128); // 128 to 255
-        const b = Math.floor(Math.random() * 128); // 128 to 255
+        // Generate random RGB values in the range (0-128) for a dark color
+        const r = Math.floor(Math.random() * 128); // 0 to 128
+        const g = Math.floor(Math.random() * 128); // 0 to 128
+        const b = Math.floor(Math.random() * 128); // 0 to 128
         return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     };
     let newColor;
@@ -13377,7 +13372,7 @@ class Component extends (0, _konvaDefault.default).Image {
         return this.node2;
     }
     setValue(val) {
-        if (Number.isFinite(parseInt(val)) && val > 0) this.value = parseInt(val);
+        if (Number.isFinite(parseFloat(val)) && val > 0) this.value = parseFloat(val);
     }
     setPrefix(val) {
         const validPrefixes = [
@@ -13396,14 +13391,13 @@ class Component extends (0, _konvaDefault.default).Image {
         if (validPrefixes.includes(val)) this.prefix = val; // Set the prefix if valid
     }
     setRotationvalue(val) {
-        if (Number.isFinite(parseInt(val)) && parseInt(val) == 0 || parseInt(val) == 90 || parseInt(val) == 180 || parseInt(val) == 270) this.rotation(parseInt(val));
+        if (Number.isFinite(parseInt(val)) && (parseInt(val) == 0 || parseInt(val) == 90 || parseInt(val) == 180 || parseInt(val) == 270)) this.rotation(parseInt(val));
     }
     getValue() {
         return this.value;
     }
 }
 class Ground extends Component {
-    //static count = 1;
     constructor(element){
         super(element);
         this.type = 'Ground';

@@ -5,9 +5,19 @@ import { Resistance, dcBattery, Switch, Wire, dcCurrentSource, Ground } from './
 
 
 
-
 drawGrid();
 
+const componentsHub = new Konva.Text({
+    x: 10, // 10px from the left
+    y: 10, // 10px from the top
+    text: 'Components Hub',
+    fontSize: 20,
+    fontFamily: 'Arial',
+    fill: 'black', // Text color
+});
+
+// Add the Text to the Layer
+layer.add(componentsHub);
 // Resistance Logic
 const resistance = document.getElementById('resistance');
 resistance.addEventListener('click', () => {
@@ -156,29 +166,12 @@ document.body.addEventListener('click', (event) => {
                         clickedNodes.push(node);
                     }
                 }
-                console.log(clickedNodes.length)
-                console.log(clickedNodes)
+                clickedNodes = [... new Set(clickedNodes)];
                 if (clickedNodes.length === 2) {
-                    if (clickedNodes[0].x() === clickedNodes[1].x() && clickedNodes[0].y() === clickedNodes[1].y()) {
-                        clickedNodes.pop();
-                    } else {
-                        setAddingWire(false);
-                        enableDragging();
-                        if (!drawWire(clickedNodes)) alert('Can\'t draw a wire between those nodes');
-                        clickedNodes = [];
-                    }
-                }
-                else if (clickedNodes.length > 2) {
-                    let x = clickedNodes.length;
-                    if (clickedNodes[0] == clickedNodes[1]) {
-                        for (let i = 1; i < x; i++) clickedNodes.pop();
-                    } else {
-                        for (let i = 2; i < x; i++) clickedNodes.pop();
-                        setAddingWire(false);
-                        enableDragging();
-                        if (!drawWire(clickedNodes)) alert('Can\'t draw a wire between those nodes');
-                        clickedNodes = [];
-                    }
+                    setAddingWire(false);
+                    enableDragging();
+                    if (!drawWire(clickedNodes)) alert('Can\'t draw a wire between those nodes');
+                    clickedNodes = [];
                 }
             }
         })
@@ -192,13 +185,6 @@ run.addEventListener('click', () => {
 // =============================================================================================================
 
 // =============================================================================================================
-//TODO: Prettier the output ....
-//TODO: calculations create a table for the output with all branch currents and node values
-//TODO: the solved array has the current through the voltage source....
-//FIXME: node with more than one node clicked causes error ... idk
-//TODO: Handle the node.is connected property, if a component has any node connected, prevent drag, if user deleted connected component, delete all associated wires .. deleteWire()
 //TODO: modified nodal analysis
 //TODO: Dependent sources
 //TODO: AC
-//FIXME: Remove the isConnected Property and all related validation..
-// TODO: handle return false from drawwire()
