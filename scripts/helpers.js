@@ -877,24 +877,24 @@ export function genNetList() {
             let node1 = parseInt(netList[i].Node1.slice(1)) // ignore the 'N' in 'Nxx'
             let node2 = parseInt(netList[i].Node2.slice(1))
             if (!Number.isNaN(node1)) { // Check if the node isn't GND
-                gMatrix[node1 - 1][node1 - 1] += 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+                gMatrix[node1 - 1][node1 - 1] += 1 / (parseFloat(netList[i].Value) * netList[i].exponent);
             }
             if (!Number.isNaN(node2)) {
-                gMatrix[node2 - 1][node2 - 1] += 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+                gMatrix[node2 - 1][node2 - 1] += 1 / (parseFloat(netList[i].Value) * netList[i].exponent);
             }
             if (!Number.isNaN(node1) && !Number.isNaN(node2)) {
-                gMatrix[node1 - 1][node2 - 1] -= 1 / (parseInt(netList[i].Value) * netList[i].exponent);
-                gMatrix[node2 - 1][node1 - 1] -= 1 / (parseInt(netList[i].Value) * netList[i].exponent);
+                gMatrix[node1 - 1][node2 - 1] -= 1 / (parseFloat(netList[i].Value) * netList[i].exponent);
+                gMatrix[node2 - 1][node1 - 1] -= 1 / (parseFloat(netList[i].Value) * netList[i].exponent);
             }
         }
         else if (netList[i].type === 'Cs') {
             let node1 = parseInt(netList[i].Node1.slice(1))
             let node2 = parseInt(netList[i].Node2.slice(1))
             if (!Number.isNaN(node1)) {
-                iMatrix[node1 - 1] += parseInt(netList[i].Value * netList[i].exponent);
+                iMatrix[node1 - 1] += parseFloat(netList[i].Value * netList[i].exponent);
             }
             if (!Number.isNaN(node2)) {
-                iMatrix[node2 - 1] -= parseInt(netList[i].Value * netList[i].exponent);
+                iMatrix[node2 - 1] -= parseFloat(netList[i].Value * netList[i].exponent);
             }
         }
     }
@@ -910,7 +910,7 @@ export function genNetList() {
             gMatrix[node2 - 1][numberOfNodes + i] -= 1;
             gMatrix[numberOfNodes + i][node2 - 1] -= 1;
         }
-        iMatrix[numberOfNodes + i] += parseInt(currentVSource.Value * currentVSource.exponent);
+        iMatrix[numberOfNodes + i] += parseFloat(currentVSource.Value * currentVSource.exponent);
     }
     let outputValues;
     try {
