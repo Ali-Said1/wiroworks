@@ -27,7 +27,7 @@
    ```
 2. Navigate to the project directory:
    ```bash
-   cd electric-circuit-simulator
+   cd wiroworks
    ```
 3. Install dependencies:
    ```bash
