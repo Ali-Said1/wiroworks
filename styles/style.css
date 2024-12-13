@@ -145,8 +145,12 @@ label {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 90%;
+    /* width: 90%; */
     margin-bottom: 15px;
+}
+
+label {
+    display: inline;
 }
 
 input[type="number"],
@@ -190,7 +194,7 @@ span {
 .rotation-labels {
     display: flex;
     justify-content: space-around;
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */
 }
 
 .rotation-labels label {

@@ -26,7 +26,7 @@ class Component extends Konva.Image {
         return this.node2;
     }
     setValue(val) {
-        if (Number.isFinite(parseFloat(val)) && val > 0) {
+        if (Number.isFinite(parseFloat(val)) && val >= 0) {
             this.value = parseFloat(val);
         }
     }
@@ -89,6 +89,77 @@ export class dcBattery extends Component {
     }
     decreaseCount() {
         dcBattery.count--;
+    }
+}
+//===============================================Dependednt DC Voltage Source Component Class=============================================
+export const ControlSource = {
+    CURRENT: 'current',
+    VOLTAGE: 'voltage'
+};
+
+export class ddcBattery extends Component {
+    static count = 1;
+    constructor(element) {
+        super(element)
+        this.dependent = true;
+        this.type = 'Dependednt DC Voltage Source';
+        this.controlsource = ControlSource.VOLTAGE;
+        this.gain = 1;
+        this.dependency = null;
+        this.unit = 'V'
+        this.name = `DVs${ddcBattery.count++}`
+    }
+    getSymbol() {
+        return 'DVs'
+    }
+    decreaseCount() {
+        ddcBattery.count--;
+    }
+    setGain(val) {
+        if (Number.isFinite(parseFloat(val))) {
+            this.gain = parseFloat(val);
+        }
+    }
+    setControlSource(val) { // Disabled currently, only sets to voltage controlled voltage source
+        if (val === ControlSource.CURRENT) {
+            this.controlsource = ControlSource.VOLTAGE;
+            alert("No support for CCVS currently");
+        }
+        else if (val === ControlSource.VOLTAGE) this.controlsource = ControlSource.VOLTAGE;
+        else this.controlsource = ControlSource.VOLTAGE;
+    }
+}
+//===============================================Dependednt DC Current Source Component Class=============================================
+export class ddcCurrentSource extends Component {
+    static count = 1;
+    constructor(element) {
+        super(element)
+        this.dependent = true;
+        this.type = 'Dependednt DC Current Source';
+        this.controlsource = ControlSource.VOLTAGE;
+        this.gain = 1;
+        this.dependency = null;
+        this.unit = 'V'
+        this.name = `DCs${ddcCurrentSource.count++}`
+    }
+    getSymbol() {
+        return 'DCs'
+    }
+    decreaseCount() {
+        ddcCurrentSource.count--;
+    }
+    setGain(val) {
+        if (Number.isFinite(parseFloat(val))) {
+            this.gain = parseFloat(val);
+        }
+    }
+    setControlSource(val) { // Disabled currently, only sets to voltage controlled voltage source
+        if (val === ControlSource.CURRENT) {
+            this.controlsource = ControlSource.VOLTAGE;
+            alert("No support for CCVS currently");
+        }
+        else if (val === ControlSource.VOLTAGE) this.controlsource = ControlSource.VOLTAGE;
+        else this.controlsource = ControlSource.VOLTAGE;
     }
 }
 //===============================================DC Current Source Component Class=============================================

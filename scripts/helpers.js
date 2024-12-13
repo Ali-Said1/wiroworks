@@ -1,4 +1,4 @@
-import { Ground, Wire } from './classes';
+import { Ground, Wire, ControlSource } from './classes';
 import Konva from 'konva'
 const math = require('mathjs')
 // Get the initial width and height of the window, used in all the calculations
@@ -243,26 +243,13 @@ export function snapToGrid(value) {
 }
 //========================================Show Component details Function==========================================
 export function showDetails(component) {
-    /*                    <input type="text" list="metric-prefixes" class="list" id="prefix" value="${component.prefix}">
-                    <datalist id="metric-prefixes">
-                        <option value="p">
-                        <option value="n">
-                        <option value="µ">
-                        <option value="m">
-                        <option value="c">
-                        <option value=" ">
-                        <option value="k">
-                        <option value="M">
-                        <option value="G">
-                        <option value="T">
-                    </datalist> */
     const html = `
     <div id="editProperties">
         <h2>${component.type}</h2>
-        <label for="componentval">${component.type} Value = </label>
+        <label for="componentval">${component.type} ${component.dependent ? 'Gain' : 'Value'} = </label>
             <div class="direction">
-                <input type="number" name="componentval" id="componentval" min="0" value=${component.value}>
-                <div class="datalist-container" style="margin-right:20px;">
+                <input type="number" name="componentval" id="componentval" min="0" value=${component.dependent ? component.gain : component.value}>
+                <div class="datalist-container">
                     <select name="rotatesel" id="prefix">
                         <option value="p" ${component.prefix === 'p' ? 'selected' : ''}>p</option>
                         <option value="n" ${component.prefix === 'n' ? 'selected' : ''}>n</option>
@@ -276,7 +263,7 @@ export function showDetails(component) {
                         <option value="T" ${component.prefix === 'T' ? 'selected' : ''}>T</option>
                     </select>
                 </div>
-            <span>${component.unit}</span>
+                ${component.dependent ? '' : `<span>${component.unit}</span>`}
         </div>
         <div class="rotation-labels">
             <label for="rotation">Rotation</label>
@@ -287,6 +274,7 @@ export function showDetails(component) {
             <option value="270" ${component.rotation() === 270 ? 'selected' : ''}>270</option>
             </select>
         </div>
+        ${getDependencies(component)}
         <div class="checkbox-container">
             <label for="showtext">Show Value</label>
             <select name="showntext" id="showtext">
@@ -296,12 +284,37 @@ export function showDetails(component) {
         </div>
          <button class="mybutton" id="deleteBtn">delete</button>
         <button class="button" id="submitBtn">submit</button>
-    </div>
+    </div >
         `
     const popupDiv = document.createElement('div');
     popupDiv.id = 'popupDiv'
     popupDiv.innerHTML = html;
     document.body.appendChild(popupDiv);
+}
+function getDependencies(component) {
+    if (!component.dependent) return "";
+    let controlsource = component.controlsource;
+    let html = `<div class="dependencyType" >
+        <label for="dependenttype">Type: </label>
+        <select name="dependencytypesel" id="dependenttype">
+        <option value=${ControlSource.CURRENT} ${(ControlSource.CURRENT === component.controlsource) ? 'selected' : ''}>${ControlSource.CURRENT}</option>
+        <option value=${ControlSource.VOLTAGE} ${(ControlSource.VOLTAGE === component.controlsource) ? 'selected' : ''}>${ControlSource.VOLTAGE}</option>
+        </select>
+        <span>controlled</span>
+        </div>
+        `
+    html += `<div class="dependency" >
+        <label for="dependson">Depends on</label>
+        <select name="dependencysel" id="dependson">`
+    components.forEach((comp, idx) => {
+        if (comp === null || comp.dependent) return;
+        let selected = false;
+        if (component.dependency == idx) selected = true;
+        html += `<option value=${idx} ${selected ? 'selected' : ''}>${comp.name}</option>`
+    })
+    html += `</select>
+    </div> `;
+    return html;
 }
 //========================================Set Occupied Nodes Function==========================================
 export function setOccupied(component) {
@@ -359,10 +372,16 @@ export function initializeComponent(component, image) {
 }
 //========================================Component Text Initialzier Function==========================================
 export function initializeComptext(component) {
+    let literaltext;
+    if (component.dependent) {
+        literaltext = `${component.name}`;
+    }
+    else
+        literaltext = `${component.name} ${component.getValue()}${component.unit}`;
     const text = new Konva.Text({
         x: component.x(), // Center the text above the resistance
         y: component.y() - 40, // Position it above the resistance
-        text: `${component.name} ${component.getValue()}${component.unit}`,
+        text: literaltext,
         fontSize: 20,
         fontFamily: 'Calibri',
         fill: 'black',
@@ -428,9 +447,19 @@ export function componentHandler(component, text) {
 
         submitBtn.addEventListener('click', () => {
             const componentval = document.getElementById('componentval');
+            if (component.dependent) { // Set the dependency
+                const dependson = document.getElementById('dependson');
+                component.dependency = dependson.value;
+                component.setGain(componentval.value) // Set the Gain
+                const dependenttype = document.getElementById('dependenttype');
+                console.log(dependenttype.value);
+                component.setControlSource(dependenttype.value);
+            }
+            else {
+                component.setValue(componentval.value); // Set the component value
+            }
             const prefix = document.getElementById('prefix');
             const rotation = document.getElementById('rotation');
-            component.setValue(componentval.value); // Set the component value
             component.setPrefix(prefix.value); // Update the prefix
             let previousRotation = component.rotation(); // Saving the value of the current rotation
             component.setRotationvalue(rotation.value); // Updating the rotation
@@ -521,7 +550,12 @@ export function handleCompNodes(component) { // Updates the component nodes
 }
 //========================================Component Text Update Function==========================================
 export function updateText(component) {
-    component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit}`);
+    if (component.dependent) {
+        component.text.text(`${component.name}`);
+    }
+    else {
+        component.text.text(`${component.name} ${component.getValue()}${component.prefix === " " ? '' : component.prefix}${component.unit} `);
+    }
     component.text.offsetX(component.text.width() / 2)
     component.text.offsetY(component.text.height() / 2)
     component.text.rotation(component.rotation());
@@ -546,9 +580,9 @@ function removeComponent(component) {
     let currNum = 1;
     components.forEach((currComponent) => { // Update the components names after deleting the component
         if (currComponent !== null && currComponent.type === component.type && currComponent !== component) {
-            if (currComponent.name !== `${currComponent.getSymbol()}${currNum++}`) { // Check if the name needs to be updated
-                currComponent.name = `${currComponent.getSymbol()}${currNum - 1}`;
-                currComponent.text.text(`${currComponent.name} ${currComponent.getValue()}${currComponent.prefix === " " ? '' : currComponent.prefix}${currComponent.unit}`);
+            if (currComponent.name !== `${currComponent.getSymbol()}${currNum++} `) { // Check if the name needs to be updated
+                currComponent.name = `${currComponent.getSymbol()}${currNum - 1} `;
+                currComponent.text.text(`${currComponent.name} ${currComponent.getValue()}${currComponent.prefix === " " ? '' : currComponent.prefix}${currComponent.unit} `);
             }
         }
     })
@@ -769,30 +803,30 @@ function updateNodes() { // Helper function to generate the nodes for the net li
         if (wire == null) return;
         for (let i = 1; i < nodeCounter; i++) {
             for (let j = 0; j < wire.gridPoints.length; j++) {
-                if (uniqueNodes[`N${i}`][`${wire.gridPoints[j].index}`]) { // Check if two wires overlap at some node
+                if (uniqueNodes[`N${i} `][`${wire.gridPoints[j].index} `]) { // Check if two wires overlap at some node
                     for (let k = 0; k < wire.gridPoints.length; k++) {
-                        uniqueNodes[`N${i}`][`${wire.gridPoints[k].index}`] = true;
+                        uniqueNodes[`N${i} `][`${wire.gridPoints[k].index} `] = true;
                     }
                     return;
                 }
             }
         }
-        if (!uniqueNodes[`N${nodeCounter}`]) uniqueNodes[`N${nodeCounter}`] = {}; // Check if the wire is a new node
+        if (!uniqueNodes[`N${nodeCounter} `]) uniqueNodes[`N${nodeCounter} `] = {}; // Check if the wire is a new node
         for (let i = 0; i < wire.gridPoints.length; i++) {
-            uniqueNodes[`N${nodeCounter}`][`${wire.gridPoints[i].index}`] = true;
+            uniqueNodes[`N${nodeCounter} `][`${wire.gridPoints[i].index} `] = true;
         }
         nodeCounter++;
     })
     for (let i = 1; i < nodeCounter; i++) {
         for (let j = i + 1; j < nodeCounter; j++) {
-            if (haveCommonNodes(uniqueNodes[`N${i}`], uniqueNodes[`N${j}`])) { // Check if two nodes have common points
-                uniqueNodes[`N${i}`] = { ...uniqueNodes[`N${i}`], ...uniqueNodes[`N${j}`] } // Make one node that holds both
+            if (haveCommonNodes(uniqueNodes[`N${i} `], uniqueNodes[`N${j} `])) { // Check if two nodes have common points
+                uniqueNodes[`N${i} `] = { ...uniqueNodes[`N${i} `], ...uniqueNodes[`N${j} `] } // Make one node that holds both
                 let k = j
                 nodeCounter--;
                 for (; k < nodeCounter; k++) {
-                    uniqueNodes[`N${k}`] = uniqueNodes[`N${k + 1}`] // Update the nodes to avoid redundancy
+                    uniqueNodes[`N${k} `] = uniqueNodes[`N${k + 1} `] // Update the nodes to avoid redundancy
                 }
-                delete uniqueNodes[`N${k}`]; // Delete the last entry from the uniqueNodes object
+                delete uniqueNodes[`N${k} `]; // Delete the last entry from the uniqueNodes object
             }
         }
     }
@@ -802,39 +836,39 @@ function updateNodes() { // Helper function to generate the nodes for the net li
         let node1Defined = false;
         let node2Defined = false;
         for (let i = 1; i < nodeCounter; i++) { // Validate whether the nodes around a component are connected by wires or not
-            if (uniqueNodes[`N${i}`][`${component.node1.index}`]) {
+            if (uniqueNodes[`N${i} `][`${component.node1.index} `]) {
                 node1Defined = true;
             }
-            if (uniqueNodes[`N${i}`][`${component.node2.index}`]) {
+            if (uniqueNodes[`N${i} `][`${component.node2.index} `]) {
                 node2Defined = true;
             }
         }
         if (!node1Defined) { // If not define a new node
-            uniqueNodes[`N${nodeCounter}`] = {};
-            uniqueNodes[`N${nodeCounter}`][`${component.node1.index}`] = true;
+            uniqueNodes[`N${nodeCounter} `] = {};
+            uniqueNodes[`N${nodeCounter} `][`${component.node1.index} `] = true;
             nodeCounter++;
         }
         if (!node2Defined) {
-            uniqueNodes[`N${nodeCounter}`] = {};
-            uniqueNodes[`N${nodeCounter}`][`${component.node2.index}`] = true;
+            uniqueNodes[`N${nodeCounter} `] = {};
+            uniqueNodes[`N${nodeCounter} `][`${component.node2.index} `] = true;
             nodeCounter++;
         }
     })
     for (let i = 1; i < nodeCounter; i++) { // Check if a defined node is ground
-        if (uniqueNodes[`N${i}`][`${ground.node.index}`]) {
-            uniqueNodes['GND'] = uniqueNodes[`N${i}`];
+        if (uniqueNodes[`N${i} `][`${ground.node.index} `]) {
+            uniqueNodes['GND'] = uniqueNodes[`N${i} `];
             let j = i
             for (; j < nodeCounter - 1; j++) {
-                uniqueNodes[`N${j}`] = uniqueNodes[`N${j + 1}`]
+                uniqueNodes[`N${j} `] = uniqueNodes[`N${j + 1} `]
             }
-            delete uniqueNodes[`N${j}`];
+            delete uniqueNodes[`N${j} `];
             nodeCounter--;
             break;
         }
     }
     if (!uniqueNodes['GND']) { // If ground isn't defined, define it
         uniqueNodes['GND'] = {};
-        uniqueNodes['GND'][`${ground.node.index}`] = true;
+        uniqueNodes['GND'][`${ground.node.index} `] = true;
     }
 }
 //========================================Generate Net list Function==========================================
@@ -845,12 +879,34 @@ export function genNetList() {
         if (component === null) return;
         let node1, node2;
         for (const key of Object.keys(uniqueNodes)) {
-            if (uniqueNodes[key][`${component.node1.index}`]) node1 = key;
+            if (uniqueNodes[key][`${component.node1.index} `]) node1 = key;
         }
         for (const key of Object.keys(uniqueNodes)) {
-            if (uniqueNodes[key][`${component.node2.index}`]) node2 = key;
+            if (uniqueNodes[key][`${component.node2.index} `]) node2 = key;
         }
-        let listObj = { name: component.name, type: component.getSymbol(), Node1: node1, Node2: node2, Value: component.value, exponent: getExponent(component.prefix) } // Genereate netlist entries
+        let listObj = {};
+        if (component.dependent) {
+            let dependComp = null;
+            let dependNode1 = 'none';
+            let dependNode2 = 'none';
+            console.log(parseInt(component.dependency));
+            if (math.isNumber(parseInt(component.dependency)))
+                dependComp = components[parseInt(component.dependency)]
+            console.log(dependComp)
+            if (!dependComp) gain = 0;
+            else {
+                gain = component.gain;
+                for (const key of Object.keys(uniqueNodes)) {
+                    if (uniqueNodes[key][`${dependComp.node1.index} `]) dependNode1 = key;
+                }
+                for (const key of Object.keys(uniqueNodes)) {
+                    if (uniqueNodes[key][`${dependComp.node2.index} `]) dependNode2 = key;
+                }
+            }
+            listObj = { name: component.name, type: component.getSymbol(), Node1: node1, Node2: node2, Gain: gain, exponent: getExponent(component.prefix), dependent: true, Dependnode1: dependNode1, Dependnode2: dependNode2, dependencyType: component.controlsource } // Genereate netlist entries
+        }
+        else
+            listObj = { name: component.name, type: component.getSymbol(), Node1: node1, Node2: node2, Value: component.value, exponent: getExponent(component.prefix), dependent: false } // Genereate netlist entries
         netList.push(listObj)
     })
     const numberOfNodes = Object.keys(uniqueNodes).length - 1; // Ground node isn't counted as a node
@@ -858,8 +914,9 @@ export function genNetList() {
     let voltageSourceIndeces = [];
     let voltageSources = [];
     for (let i = 0; i < netList.length; i++) {
-        if (netList[i].type === 'Vs') {
+        if (netList[i].type === 'Vs' || netList[i].type === 'DVs') {
             voltageSourceCount++;
+            if (netList[i].dependencyType === ControlSource.CURRENT) voltageSourceCount++;
             voltageSourceIndeces.push(i);
             voltageSources.push(netList[i].name);
         };
@@ -897,21 +954,64 @@ export function genNetList() {
                 iMatrix[node2 - 1] -= parseFloat(netList[i].Value * netList[i].exponent);
             }
         }
+        else if (netList[i].type === 'DCs') {
+            let node1 = parseInt(netList[i].Node1.slice(1))
+            let node2 = parseInt(netList[i].Node2.slice(1))
+            let dependentnode1 = parseInt(netList[i].Dependnode1.slice(1));
+            let dependentnode2 = parseInt(netList[i].Dependnode2.slice(1));
+            if (!Number.isNaN(node1)) {
+                if (!Number.isNaN(dependentnode1)) gMatrix[node1 - 1][dependentnode1 - 1] -= parseFloat(netList[i].Gain * netList[i].exponent);
+                if (!Number.isNaN(dependentnode2)) gMatrix[node1 - 1][dependentnode2 - 1] += parseFloat(netList[i].Gain * netList[i].exponent);
+            }
+            if (!Number.isNaN(node2)) {
+                if (!Number.isNaN(dependentnode1)) gMatrix[node2 - 1][dependentnode1 - 1] += parseFloat(netList[i].Gain * netList[i].exponent);
+                if (!Number.isNaN(dependentnode2)) gMatrix[node2 - 1][dependentnode2 - 1] -= parseFloat(netList[i].Gain * netList[i].exponent);
+            }
+        }
     }
+    let skipEntries = [];
     for (let i = 0; i < voltageSourceIndeces.length; i++) {
         const currentVSource = netList[voltageSourceIndeces[i]];
         let node1 = parseInt(currentVSource.Node1.slice(1));
         let node2 = parseInt(currentVSource.Node2.slice(1));
         if (!Number.isNaN(node1)) {
-            gMatrix[node1 - 1][numberOfNodes + i] += 1;
-            gMatrix[numberOfNodes + i][node1 - 1] += 1;
+            gMatrix[node1 - 1][numberOfNodes + i + skipEntries.length] += 1;
+            gMatrix[numberOfNodes + i + skipEntries.length][node1 - 1] += 1;
         }
         if (!Number.isNaN(node2)) {
-            gMatrix[node2 - 1][numberOfNodes + i] -= 1;
-            gMatrix[numberOfNodes + i][node2 - 1] -= 1;
+            gMatrix[node2 - 1][numberOfNodes + i + skipEntries.length] -= 1;
+            gMatrix[numberOfNodes + i + skipEntries.length][node2 - 1] -= 1;
         }
-        iMatrix[numberOfNodes + i] += parseFloat(currentVSource.Value * currentVSource.exponent);
+        if (currentVSource.dependent === true) {
+            if (currentVSource.dependencyType === ControlSource.VOLTAGE) {
+                let dependentnode1 = parseInt(currentVSource.Dependnode1.slice(1));
+                let dependentnode2 = parseInt(currentVSource.Dependnode2.slice(1));
+                if (!Number.isNaN(dependentnode1)) {
+                    gMatrix[numberOfNodes + i + skipEntries.length][dependentnode1 - 1] -= parseFloat(currentVSource.Gain * currentVSource.exponent);
+                }
+                if (!Number.isNaN(dependentnode2)) {
+                    gMatrix[numberOfNodes + i + skipEntries.length][dependentnode2 - 1] += parseFloat(currentVSource.Gain * currentVSource.exponent);
+                }
+            }
+            else {
+                let dependentnode1 = parseInt(currentVSource.Dependnode1.slice(1));
+                let dependentnode2 = parseInt(currentVSource.Dependnode2.slice(1));
+                if (!Number.isNaN(dependentnode1)) {
+                    gMatrix[numberOfNodes + i + skipEntries.length + 1][dependentnode1 - 1] += 1;
+                    gMatrix[dependentnode1 - 1][numberOfNodes + i + skipEntries.length + 1] += 1;
+                }
+                if (!Number.isNaN(dependentnode2)) {
+                    gMatrix[numberOfNodes + i + skipEntries.length + 1][dependentnode2 - 1] -= 1;
+                    gMatrix[dependentnode2 - 1][numberOfNodes + i + skipEntries.length + 1] -= 1;
+                }
+                gMatrix[numberOfNodes + i + skipEntries.length][numberOfNodes + i + skipEntries.length + 1] -= parseFloat(currentVSource.Gain * currentVSource.exponent);
+                skipEntries.push(numberOfNodes + i + skipEntries.length + 1);
+            }
+        }
+        else
+            iMatrix[numberOfNodes + i + skipEntries.length] += parseFloat(currentVSource.Value * currentVSource.exponent);
     }
+    console.log(gMatrix);
     let outputValues;
     try {
         outputValues = math.lusolve(gMatrix, iMatrix);
@@ -922,7 +1022,7 @@ export function genNetList() {
 
     let nodeColors = [];
     for (let i = 0; i < outputValues.length - voltageSourceCount; i++) {
-        let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1}`])[0]);
+        let nodeIdx = parseInt(Object.keys(uniqueNodes[`N${i + 1} `])[0]);
         let curr = nodes[nodeIdx]
         let currFill = randomColor(nodeColors); // Add Circles with random generated colors on the circuit clarifying the output nodes
         const node = new Konva.Circle({
@@ -935,7 +1035,7 @@ export function genNetList() {
         nodeColors.push(currFill);
         outputNodes.push(node);
     }
-    drawTable(outputValues, voltageSources, nodeColors)
+    drawTable(outputValues, voltageSources, nodeColors, skipEntries)
     layer.batchDraw()
 }
 //========================================Get Exponent Function==========================================
@@ -962,7 +1062,7 @@ function getExponent(prefix) {
         case 'T': // tera
             return Math.pow(10, 12);
         default:
-            throw new Error(`Unknown prefix: ${prefix}`);
+            throw new Error(`Unknown prefix: ${prefix} `);
     }
 }
 //========================================Generate Random unique Color for nodes Function==========================================
@@ -973,7 +1073,7 @@ function randomColor(nodeColors) {
         const g = Math.floor(Math.random() * 128); // 0 to 128
         const b = Math.floor(Math.random() * 128); // 0 to 128
 
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')} `;
     };
 
     let newColor;
@@ -1019,7 +1119,7 @@ function formatOutput(value) {
     }
 }
 //========================================Draw Table Function==========================================
-export function drawTable(outputValues, voltageSources, nodeColors) {
+export function drawTable(outputValues, voltageSources, nodeColors, skipEntries) {
     const firstColcellWidth = 150;
     const SecondColcellWidth = 100;
     const cellHeight = 40;
@@ -1070,7 +1170,7 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         fill: 'black'
     });
     tableGroup.add(text2);
-    for (let i = 0; i < outputValues.length - voltageSourceCount; i++) { // Add the node Voltages to the table
+    for (let i = 0; i < outputValues.length - (voltageSourceCount + skipEntries.length); i++) { // Add the node Voltages to the table
         const node = new Konva.Rect({
             x: 50,
             y: (i + 1) * cellHeight + 50,
@@ -1084,7 +1184,7 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         const nodeName = new Konva.Text({
             x: 50 + 10, // padding
             y: (i + 1) * cellHeight + 60, // padding
-            text: `V${i + 1}`,
+            text: `V${i + 1} `,
             fontSize: 16,
             fontFamily: 'Calibri',
             fill: nodeColors[i] // Colored the same as the corresponding node on the circuit
@@ -1103,17 +1203,20 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         const nodeValTxt = new Konva.Text({
             x: 50 + firstColcellWidth + 10, // padding
             y: (i + 1) * cellHeight + 60, // padding
-            text: `${formatOutput(outputValues[i])}V`,
+            text: `${formatOutput(outputValues[i])} V`,
             fontSize: 16,
             fontFamily: 'Calibri',
             fill: 'black'
         });
         tableGroup.add(nodeValTxt);
     }
-    for (let i = outputValues.length - voltageSourceCount; i < outputValues.length; i++) { // Add the currents through the voltage sources
+    let actualCount = 0;
+    let skipped = 0;
+    for (let i = outputValues.length - (voltageSourceCount + skipEntries.length); i < outputValues.length; i++) { // Add the currents through the voltage sources
+        if (skipEntries.includes(i)) { skipped++; continue; }
         const branch = new Konva.Rect({
             x: 50,
-            y: (i + 1) * cellHeight + 50,
+            y: (i + 1 - skipped) * cellHeight + 50,
             width: firstColcellWidth,
             height: cellHeight,
             fill: 'white',
@@ -1123,8 +1226,8 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         tableGroup.add(branch);
         const branchName = new Konva.Text({
             x: 50 + 10, // padding
-            y: (i + 1) * cellHeight + 60, // padding
-            text: `I through ${voltageSources[i - (outputValues.length - voltageSourceCount)]}`,
+            y: (i + 1 - skipped) * cellHeight + 60, // padding
+            text: `I through ${voltageSources[i - (outputValues.length - (voltageSourceCount + skipEntries.length))]} `,
             fontSize: 16,
             fontFamily: 'Calibri',
             fill: 'black' // Colored the same as the corresponding node on the circuit
@@ -1132,7 +1235,7 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         tableGroup.add(branchName);
         const currentVal = new Konva.Rect({
             x: 50 + firstColcellWidth,
-            y: 50 + (i + 1) * cellHeight,
+            y: 50 + (i + 1 - skipped) * cellHeight,
             width: SecondColcellWidth,
             height: cellHeight,
             fill: 'white', // Header row color
@@ -1142,13 +1245,14 @@ export function drawTable(outputValues, voltageSources, nodeColors) {
         tableGroup.add(currentVal);
         const current = new Konva.Text({
             x: 50 + firstColcellWidth + 10, // padding
-            y: (i + 1) * cellHeight + 60, // padding
-            text: `${formatOutput(outputValues[i])}A`,
+            y: (i + 1 - skipped) * cellHeight + 60, // padding
+            text: `${formatOutput(outputValues[i])} A`,
             fontSize: 16,
             fontFamily: 'Calibri',
             fill: 'black'
         });
         tableGroup.add(current);
+        actualCount++;
     }
     layer.add(tableGroup);
     stage.on('click', (e) => {
