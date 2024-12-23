@@ -1,0 +1,2 @@
+let e;const t=document.querySelector(".image-container"),n=document.querySelector(".components");function o(n){e=setInterval(()=>{t.scrollBy({top:10*n,behavior:"smooth"})},100)}function d(){clearInterval(e)}n.addEventListener("mousedown",e=>{let{clientY:t}=e,{top:d,bottom:r}=n.getBoundingClientRect();t<d+(r-d)/2?o(-1):o(1)}),n.addEventListener("mouseup",d),n.addEventListener("mouseleave",d),document.getElementById("userguide-done").addEventListener("click",()=>{document.getElementById("user-guide").remove()});
+//# sourceMappingURL=index.b6010fab.js.map
