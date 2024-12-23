@@ -35,3 +35,10 @@ components.addEventListener('mousedown', (event) => {
 
 components.addEventListener('mouseup', stopScrolling);
 components.addEventListener('mouseleave', stopScrolling); // Stop scrolling when mouse leaves the component
+
+const userguideSubmit = document.getElementById('userguide-done');
+
+userguideSubmit.addEventListener('click', () => {
+    const userguide = document.getElementById('user-guide');
+    userguide.remove();
+});

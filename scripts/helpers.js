@@ -586,6 +586,7 @@ function removeComponent(component) {
             }
         }
     })
+    unsetOccupied(component); // Unset the occupied nodes
     component.decreaseCount(); // Decrease the static counter in the class
     components[component.ID] = null; // nullify the component in the components array
     component.text.remove();
@@ -885,6 +886,7 @@ export function genNetList() {
             if (uniqueNodes[key][`${component.node2.index} `]) node2 = key;
         }
         let listObj = {};
+        let gain;
         if (component.dependent) {
             let dependComp = null;
             let dependNode1 = 'none';

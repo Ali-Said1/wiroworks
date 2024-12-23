@@ -10,6 +10,7 @@
 </head>
 
 <body>
+
     <div id="container"></div>
     <section class="components">
         <div class="image-container">
@@ -26,6 +27,93 @@
     <div class="alert" id="atOriginalert">Another Component exists at components hub</div>
     <div class="redalert" id="norotate">Can't Rotate component at current position</div>
     <div class="redalert" id="differentnode">Please choose a different node.</div>
+    <div id="user-guide">
+        <h1>User Guide: Step-by-Step Instructions</h1>
+
+        <div class="section">
+            <h2>1. Adding Components</h2>
+            <p class="steps">Step 1: Click on a component (e.g., resistor or battery) from the toolbar and drag it onto
+                the grid.</p>
+            <p class="tip">Tip: Double-click the component to open the properties editor for customization (e.g.,
+                resistance, voltage).</p>
+        </div>
+
+        <div class="section">
+            <h2>2. Adding Dependent Sources</h2>
+            <p class="steps">Step 1: Double-click on a voltage-dependent component to open the properties editor.</p>
+            <p class="steps">Step 2: Choose the dependency type and select the branch the source depends on.</p>
+            <p class="tip">Tip: Current-dependent sources are yet to be implemented.</p>
+        </div>
+
+        <div class="section">
+            <h2>3. Connecting Components with Wires</h2>
+            <p class="steps">Step 1: Click on a connection point of the first component.</p>
+            <p class="steps">Step 2: Click on another connection point of a different component to draw a wire between
+                them.</p>
+            <p class="tip">Tip: Only valid connection points are highlighted to ensure accurate connections.</p>
+        </div>
+
+        <div class="section">
+            <h2>4. Editing Component Properties</h2>
+            <p class="steps">Step 1: Double-click the component to open the properties editor.</p>
+            <p class="steps">Step 2: Adjust parameters like resistance value, voltage, rotation, etc.</p>
+            <p class="tip">Tip: Rotate components directly within the properties editor to fit your layout.</p>
+        </div>
+
+        <div class="section">
+            <h2>5. Rearranging Components</h2>
+            <p class="steps">Click and drag any component to a new location on the grid.</p>
+            <p class="tip">Tip: Keep components spaced out to avoid a cluttered design.</p>
+        </div>
+        <div class="section">
+            <h2>6. Deleting Components</h2>
+            <p class="steps">Step 1: Select the component to remove.</p>
+            <p class="steps">Step 2: Double-click and press the delete button in the properties editor.</p>
+        </div>
+
+        <div class="section">
+            <h2>7. Drag-End Behavior</h2>
+            <p class="steps">Drag the component to the desired position and release to place it.</p>
+            <p class="tip">Tip: If components are too close, they will snap back to their original position.</p>
+        </div>
+
+        <div class="section">
+            <h2>8. Component Node</h2>
+            <p>Nodes are located on the sides of components based on their orientation.</p>
+            <p class="tip">Tip: After moving or rotating components, node references are updated automatically.</p>
+        </div>
+
+        <div class="section">
+            <h2>9. Text Management</h2>
+            <p>Text position is updated based on the component’s rotation and position.</p>
+            <p class="tip">Tip: The text is automatically repositioned during drag-and-drop or after rotation.</p>
+        </div>
+
+        <div class="section">
+            <h2>10. Component Removal</h2>
+            <p class="steps">Step 1: Double-click the component and open the Properties Editor.</p>
+            <p class="steps">Step 2: Press the delete button to remove it from the grid.</p>
+            <p class="tip">Tip: When a component is deleted, other components may be renamed to maintain consistency.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>11. Analyzing the Circuit</h2>
+            <p class="steps">Step 1: Once the circuit is ready, click the run button to start analysis.</p>
+            <p class="steps">Step 2: View node voltages and branch currents in the output table.</p>
+            <p class="tip">Tip: Ensure all components are connected correctly for an accurate analysis result.</p>
+        </div>
+
+        <div class="output">
+            <h2>Output Summary</h2>
+            <p><strong>Node Voltages:</strong> V1, V2, V3, ..., VN (voltages at all nodes except the ground).</p>
+            <p><strong>Voltage Source Currents:</strong> I1, I2, ..., (current through each voltage source).</p>
+            <p><strong>Visualization:</strong> Node voltages are shown graphically on the canvas with a summary table.
+            </p>
+        </div>
+        <button id="userguide-done" type="button">Done</button>
+    </div>
+
     <script src="scripts/static.js"></script>
     <script type="module" src="scripts/index.js"></script>
 </body>
